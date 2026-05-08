@@ -51,6 +51,9 @@ model GameInstance {
 
   // Students who entered this game through the join code
   participants GameParticipant[]
+
+  players Player[]
+  matchResults MatchResult[]
 }
 
 // ─── GameParticipant ─────────────────────────────────────────────────────────
@@ -76,6 +79,14 @@ model Team {
   name      String
   budget    Float    @default(50000) // START_TEAM_MONEY from formulas
   fans      Int      @default(1000)  // START_FAN_NUMBER from formulas
+  pubScore  Float    @default(0)
+  merchScore Float   @default(0)
+  points    Int      @default(0)
+  wins      Int      @default(0)
+  draws     Int      @default(0)
+  losses    Int      @default(0)
+  pointDiff Int      @default(0)
+  ready     Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -85,6 +96,10 @@ model Team {
 
   // Students assigned to this team
   members TeamMember[]
+
+  players TeamPlayer[]
+  bids Bid[]
+  marketingDecisions MarketingDecision[]
 }
 
 // ─── TeamMember ──────────────────────────────────────────────────────────────
@@ -101,4 +116,85 @@ model TeamMember {
 
   // A student can only be on one team per game
   @@unique([userId, teamId])
+}
+
+model Player {
+  id          String   @id @default(uuid())
+  name        String
+  position    String
+  stats       Int
+  price       Float
+  roundNumber Int
+  market      Boolean  @default(false)
+  sold        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  gameId String
+  game   GameInstance @relation(fields: [gameId], references: [id])
+
+  teamPlayers TeamPlayer[]
+  bids Bid[]
+}
+
+model TeamPlayer {
+  id      String  @id @default(uuid())
+  starter Boolean @default(false)
+  slot    Int     @default(0)
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id])
+
+  @@unique([teamId, playerId])
+}
+
+model Bid {
+  id          String   @id @default(uuid())
+  amount      Float
+  roundNumber Int
+  createdAt   DateTime @default(now())
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id])
+
+  @@unique([teamId, playerId, roundNumber])
+}
+
+model MarketingDecision {
+  id              String   @id @default(uuid())
+  roundNumber     Int
+  pubInvestment   Int      @default(0)
+  merchInvestment Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, roundNumber])
+}
+
+model MatchResult {
+  id          String   @id @default(uuid())
+  roundNumber Int
+  scoreA      Float
+  scoreB      Float
+  resultA     String
+  resultB     String
+  fanDeltaA   Int
+  fanDeltaB   Int
+  moneyDeltaA Float
+  moneyDeltaB Float
+  createdAt   DateTime @default(now())
+
+  gameId String
+  game   GameInstance @relation(fields: [gameId], references: [id])
+
+  teamAId String
+  teamBId String
 }

@@ -13,15 +13,34 @@ type TeamAssignment = {
   name: string;
   budget: number;
   fans: number;
+  pubScore?: number;
+  merchScore?: number;
+  points?: number;
+  wins?: number;
+  draws?: number;
+  losses?: number;
+  pointDiff?: number;
+  ready?: boolean;
 };
 
 type TeamSummary = TeamAssignment & {
   members: { id: string; user: { id: string; name: string } }[];
+  roster?: Player[];
 };
 
 type GameDetails = {
   game: Required<GameSummary>;
   teams: TeamSummary[];
+  market: MarketPlayer[];
+  bids: { id: string; playerId: string; teamId: string; amount: number }[];
+  marketingDecisions: {
+    id: string;
+    teamId: string;
+    roundNumber: number;
+    pubInvestment: number;
+    merchInvestment: number;
+  }[];
+  results: MatchResult[];
 };
 
 type StudentScreen = "join" | "waiting" | "dashboard";
@@ -32,6 +51,29 @@ type Player = {
   name: string;
   position: string;
   rating: number;
+  stats?: number;
+  price?: number;
+  starter?: boolean | number;
+};
+
+type MarketPlayer = Player & {
+  price: number;
+  roundNumber: number;
+};
+
+type MatchResult = {
+  id: string;
+  roundNumber: number;
+  scoreA: number;
+  scoreB: number;
+  resultA: string;
+  resultB: string;
+  fanDeltaA: number;
+  fanDeltaB: number;
+  moneyDeltaA: number;
+  moneyDeltaB: number;
+  teamAId: string;
+  teamBId: string;
 };
 
 const STUDENT_STORAGE_KEY = "pir-demo-student-id";
@@ -130,6 +172,13 @@ function formatMoney(value: number) {
   });
 }
 
+function toPlayer(player: Player): Player {
+  return {
+    ...player,
+    rating: Number(player.rating ?? player.stats ?? 40),
+  };
+}
+
 function Button({
   children,
   className,
@@ -213,9 +262,10 @@ export function StudentJoinPage() {
 
   async function loadGameDetails(gameId: string) {
     const response = await fetch(`/api/games/${gameId}`);
-    if (!response.ok) return;
+    if (!response.ok) return null;
     const data = await response.json();
     setGameDetails(data);
+    return data as GameDetails;
   }
 
   async function joinGame(event: React.FormEvent<HTMLFormElement>) {
@@ -275,8 +325,15 @@ export function StudentJoinPage() {
 
         const data = await response.json();
         if (active && data.assigned && data.team) {
-          setTeam(data.team);
-          await loadGameDetails(gameId);
+          const details = await loadGameDetails(gameId);
+          const assignedTeam = details?.teams.find((candidate) => candidate.id === data.team.id) ?? data.team;
+          setTeam(assignedTeam);
+          const roster = (assignedTeam.roster ?? []).map(toPlayer);
+          if (roster.length > 0) {
+            setLineup(roster.filter((player: Player) => Boolean(player.starter)).slice(0, 15));
+            setBench(roster.filter((player: Player) => !player.starter));
+            setReady(Boolean(assignedTeam.ready));
+          }
           setScreen("dashboard");
         }
       } catch (err) {
@@ -309,18 +366,94 @@ export function StudentJoinPage() {
     setReady(false);
   }
 
+  async function refreshDashboard() {
+    if (!game || !team) return;
+    const details = await loadGameDetails(game.id);
+    const updatedTeam = details?.teams.find((candidate) => candidate.id === team.id);
+    if (updatedTeam) {
+      setTeam(updatedTeam);
+      setReady(Boolean(updatedTeam.ready));
+    }
+  }
+
+  async function submitBid(playerId: string, amount: number) {
+    if (!game || !team) return;
+    setError("");
+    const response = await fetch(`/api/games/${game.id}/teams/${team.id}/bids`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, amount }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      setError(data?.error || "Unable to place bid");
+      return;
+    }
+    setBids({ ...bids, [playerId]: amount });
+    await refreshDashboard();
+  }
+
+  async function submitMarketing(spend: Record<string, number>) {
+    if (!game || !team) return false;
+    const pubInvestment = ["campus", "social"].filter((id) => (spend[id] ?? 0) > 0).length;
+    const merchInvestment = ["merch", "sponsor", "family"].filter((id) => (spend[id] ?? 0) > 0).length;
+    const response = await fetch(`/api/games/${game.id}/teams/${team.id}/marketing`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pubInvestment, merchInvestment }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      setError(data?.error || "Unable to save marketing");
+      return false;
+    }
+    await refreshDashboard();
+    return true;
+  }
+
+  async function markReady() {
+    if (!game || !team) return;
+    setError("");
+    const starterPlayerIds = lineup.map((player) => player.id);
+    const lineupResponse = await fetch(`/api/games/${game.id}/teams/${team.id}/lineup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ starterPlayerIds }),
+    });
+    const lineupData = await lineupResponse.json().catch(() => null);
+    if (!lineupResponse.ok) {
+      setError(lineupData?.error || "Unable to save lineup");
+      return;
+    }
+
+    const marketingSaved = await submitMarketing(marketingSpend);
+    if (!marketingSaved) return;
+    const readyResponse = await fetch(`/api/games/${game.id}/teams/${team.id}/ready`, {
+      method: "POST",
+    });
+    const readyData = await readyResponse.json().catch(() => null);
+    if (!readyResponse.ok) {
+      setError(readyData?.error || "Unable to mark ready");
+      return;
+    }
+    setReady(true);
+    await refreshDashboard();
+  }
+
   const standings = useMemo(
     () =>
-      (gameDetails?.teams ?? []).map((standingTeam, index) => ({
+      (gameDetails?.teams ?? [])
+        .map((standingTeam) => ({
         team: standingTeam,
-        played: gameDetails?.game.currentRound ?? 0,
-        wins: index === 0 ? 1 : 0,
-        draws: 0,
-        losses: index === 0 ? 0 : 1,
-        pointDiff: 18 - index * 7,
-        points: index === 0 ? 4 : 0,
-      })),
-    [gameDetails?.game.currentRound, gameDetails?.teams],
+        played: (standingTeam.wins ?? 0) + (standingTeam.draws ?? 0) + (standingTeam.losses ?? 0),
+        wins: standingTeam.wins ?? 0,
+        draws: standingTeam.draws ?? 0,
+        losses: standingTeam.losses ?? 0,
+        pointDiff: standingTeam.pointDiff ?? 0,
+        points: standingTeam.points ?? 0,
+      }))
+        .sort((a, b) => b.points - a.points || b.pointDiff - a.pointDiff || b.team.fans - a.team.fans),
+    [gameDetails?.teams],
   );
 
   const totalReserved = Object.values(bids).reduce((sum, bid) => sum + bid, 0);
@@ -353,7 +486,6 @@ export function StudentJoinPage() {
         setSelectedLineupId={setSelectedLineupId}
         swapPlayer={swapPlayer}
         ready={ready}
-        setReady={setReady}
         bids={bids}
         setBids={setBids}
         totalReserved={totalReserved}
@@ -361,6 +493,11 @@ export function StudentJoinPage() {
         setMarketingSpend={setMarketingSpend}
         totalMarketing={totalMarketing}
         standings={standings}
+        gameDetails={gameDetails}
+        onBid={submitBid}
+        onMarketing={submitMarketing}
+        onReady={markReady}
+        error={error}
       />
     );
   }
@@ -426,7 +563,6 @@ function StudentDashboard({
   setSelectedLineupId,
   swapPlayer,
   ready,
-  setReady,
   bids,
   setBids,
   totalReserved,
@@ -434,6 +570,11 @@ function StudentDashboard({
   setMarketingSpend,
   totalMarketing,
   standings,
+  gameDetails,
+  onBid,
+  onMarketing,
+  onReady,
+  error,
 }: {
   game: GameSummary;
   team: TeamAssignment;
@@ -445,7 +586,6 @@ function StudentDashboard({
   setSelectedLineupId: (id: string | null) => void;
   swapPlayer: (player: Player) => void;
   ready: boolean;
-  setReady: (ready: boolean) => void;
   bids: Record<string, number>;
   setBids: (bids: Record<string, number>) => void;
   totalReserved: number;
@@ -461,6 +601,11 @@ function StudentDashboard({
     pointDiff: number;
     points: number;
   }[];
+  gameDetails: GameDetails | null;
+  onBid: (playerId: string, amount: number) => void;
+  onMarketing: (spend: Record<string, number>) => void;
+  onReady: () => void;
+  error: string;
 }) {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
@@ -496,6 +641,11 @@ function StudentDashboard({
       </div>
 
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {error && (
+          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+            {error}
+          </p>
+        )}
         {activeTab === "team" && (
           <TeamTab
             lineup={lineup}
@@ -504,11 +654,19 @@ function StudentDashboard({
             setSelectedLineupId={setSelectedLineupId}
             swapPlayer={swapPlayer}
             ready={ready}
-            setReady={setReady}
+            onReady={onReady}
           />
         )}
         {activeTab === "market" && (
-          <MarketTab team={team} bids={bids} setBids={setBids} totalReserved={totalReserved} />
+          <MarketTab
+            team={team}
+            market={gameDetails?.market ?? []}
+            serverBids={gameDetails?.bids ?? []}
+            bids={bids}
+            setBids={setBids}
+            totalReserved={totalReserved}
+            onBid={onBid}
+          />
         )}
         {activeTab === "marketing" && (
           <MarketingTab
@@ -516,10 +674,13 @@ function StudentDashboard({
             marketingSpend={marketingSpend}
             setMarketingSpend={setMarketingSpend}
             totalMarketing={totalMarketing}
+            onMarketing={onMarketing}
           />
         )}
         {activeTab === "leaderboard" && <LeaderboardTab game={game} standings={standings} />}
-        {activeTab === "report" && <ReportTab team={team} standings={standings} />}
+        {activeTab === "report" && (
+          <ReportTab standings={standings} results={gameDetails?.results ?? []} />
+        )}
       </section>
     </main>
   );
@@ -541,7 +702,7 @@ function TeamTab({
   setSelectedLineupId,
   swapPlayer,
   ready,
-  setReady,
+  onReady,
 }: {
   lineup: Player[];
   bench: Player[];
@@ -549,7 +710,7 @@ function TeamTab({
   setSelectedLineupId: (id: string | null) => void;
   swapPlayer: (player: Player) => void;
   ready: boolean;
-  setReady: (ready: boolean) => void;
+  onReady: () => void;
 }) {
   return (
     <div className="grid gap-5">
@@ -558,7 +719,7 @@ function TeamTab({
           <h2 className="text-xl font-semibold tracking-tight">Squad</h2>
           <p className="text-sm text-slate-500">Select a starter, then choose a bench player.</p>
         </div>
-        <Button type="button" onClick={() => setReady(!ready)} variant={ready ? "secondary" : "primary"}>
+        <Button type="button" onClick={onReady} variant={ready ? "secondary" : "primary"}>
           {ready ? "Ready submitted" : "Mark ready"}
         </Button>
       </div>
@@ -625,15 +786,23 @@ function TeamTab({
 
 function MarketTab({
   team,
+  market,
+  serverBids,
   bids,
   setBids,
   totalReserved,
+  onBid,
 }: {
   team: TeamAssignment;
+  market: MarketPlayer[];
+  serverBids: { id: string; playerId: string; teamId: string; amount: number }[];
   bids: Record<string, number>;
   setBids: (bids: Record<string, number>) => void;
   totalReserved: number;
+  onBid: (playerId: string, amount: number) => void;
 }) {
+  const availablePlayers = market.length > 0 ? market.map(toPlayer) : marketPlayers;
+
   return (
     <div className="grid gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -646,9 +815,12 @@ function MarketTab({
 
       <Card className="overflow-hidden">
         <div className="divide-y divide-slate-200">
-          {marketPlayers.map((player, index) => {
-            const suggestedBid = 8000 + index * 2500;
-            const bid = bids[player.id] ?? suggestedBid;
+          {availablePlayers.map((player, index) => {
+            const highestBid = serverBids
+              .filter((bid) => bid.playerId === player.id)
+              .reduce((max, bid) => Math.max(max, bid.amount), 0);
+            const suggestedBid = player.price ?? 8000 + index * 2500;
+            const bid = bids[player.id] ?? Math.max(suggestedBid, highestBid);
 
             return (
               <div
@@ -658,8 +830,11 @@ function MarketTab({
                 <div>
                   <p className="font-medium">{player.name}</p>
                   <p className="text-sm text-slate-500">
-                    {player.position} · OVR {player.rating}
+                    {player.position} · OVR {player.rating} · Start {formatMoney(suggestedBid)}
                   </p>
+                  {highestBid > 0 && (
+                    <p className="mt-1 text-xs text-slate-500">Current high bid {formatMoney(highestBid)}</p>
+                  )}
                 </div>
                 <input
                   type="number"
@@ -675,12 +850,15 @@ function MarketTab({
                   className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                   aria-label={`${player.name} bid`}
                 />
-                <Button type="button" onClick={() => setBids({ ...bids, [player.id]: bid })}>
+                <Button type="button" onClick={() => onBid(player.id, bid)}>
                   Bid
                 </Button>
               </div>
             );
           })}
+          {availablePlayers.length === 0 && (
+            <p className="p-6 text-sm text-slate-500">The market opens when the professor launches a round.</p>
+          )}
         </div>
       </Card>
     </div>
@@ -692,11 +870,13 @@ function MarketingTab({
   marketingSpend,
   setMarketingSpend,
   totalMarketing,
+  onMarketing,
 }: {
   team: TeamAssignment;
   marketingSpend: Record<string, number>;
   setMarketingSpend: (spend: Record<string, number>) => void;
   totalMarketing: number;
+  onMarketing: (spend: Record<string, number>) => void;
 }) {
   return (
     <div className="grid gap-5">
@@ -737,12 +917,14 @@ function MarketingTab({
               />
               <Button
                 type="button"
-                onClick={() =>
-                  setMarketingSpend({
+                onClick={() => {
+                  const nextSpend = {
                     ...marketingSpend,
                     [option.id]: marketingSpend[option.id] ?? option.cost,
-                  })
-                }
+                  };
+                  setMarketingSpend(nextSpend);
+                  onMarketing(nextSpend);
+                }}
               >
                 Buy
               </Button>
@@ -821,10 +1003,9 @@ function LeaderboardTab({
 }
 
 function ReportTab({
-  team,
   standings,
+  results,
 }: {
-  team: TeamAssignment;
   standings: {
     team: TeamSummary;
     played: number;
@@ -834,7 +1015,10 @@ function ReportTab({
     pointDiff: number;
     points: number;
   }[];
+  results: MatchResult[];
 }) {
+  const latestResults = results.slice(-4).reverse();
+
   return (
     <Card className="overflow-hidden">
       <div className="border-b border-slate-200 px-4 py-3">
@@ -856,20 +1040,39 @@ function ReportTab({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {standings.map((standing, index) => (
+            {standings.map((standing, index) => {
+              const teamResult = latestResults.find(
+                (result) => result.teamAId === standing.team.id || result.teamBId === standing.team.id,
+              );
+              const outcome =
+                teamResult?.teamAId === standing.team.id
+                  ? teamResult.resultA
+                  : teamResult?.teamBId === standing.team.id
+                    ? teamResult.resultB
+                    : "Pending";
+              const fanDelta =
+                teamResult?.teamAId === standing.team.id
+                  ? teamResult.fanDeltaA
+                  : teamResult?.teamBId === standing.team.id
+                    ? teamResult.fanDeltaB
+                    : 0;
+
+              return (
               <tr key={standing.team.id}>
                 <td className="px-4 py-3">{index + 1}</td>
                 <td className="px-4 py-3 font-medium">{standing.team.name}</td>
                 <td className="px-4 py-3">{standing.team.fans.toLocaleString()}</td>
                 <td className="px-4 py-3">{formatMoney(standing.team.budget)}</td>
-                <td className="px-4 py-3">{index === 0 ? "Win" : "Loss"}</td>
+                <td className="px-4 py-3 capitalize">{outcome}</td>
                 <td className="px-4 py-3">
-                  {standing.team.id === team.id ? "+8%" : "+2%"}
+                  {fanDelta > 0 ? "+" : ""}
+                  {fanDelta.toLocaleString()} fans
                 </td>
                 <td className="px-4 py-3">0</td>
-                <td className="px-4 py-3">{standing.played}</td>
+                <td className="px-4 py-3">{teamResult?.roundNumber ?? standing.played}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
