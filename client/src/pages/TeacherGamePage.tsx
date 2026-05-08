@@ -356,7 +356,9 @@ export function TeacherGamePage() {
           />
         )}
         {activeTab === "report" && <ReportTab details={details} />}
-        {activeTab === "leaderboard" && <LeaderboardTab teams={details.teams} />}
+        {activeTab === "leaderboard" && (
+          <LeaderboardTab teams={details.teams} results={details.results} />
+        )}
       </section>
     </main>
   );
@@ -634,7 +636,7 @@ function ReportTile({ label, value }: { label: string; value: string | number })
   );
 }
 
-function LeaderboardTab({ teams }: { teams: Team[] }) {
+function LeaderboardTab({ teams, results }: { teams: Team[]; results: MatchResult[] }) {
   const standings = [...teams].sort(
     (a, b) =>
       (b.points ?? 0) - (a.points ?? 0) ||
@@ -659,27 +661,57 @@ function LeaderboardTab({ teams }: { teams: Team[] }) {
             <th className="px-4 py-3">PTS</th>
             <th className="px-4 py-3">Fans</th>
             <th className="px-4 py-3">Budget</th>
+            <th className="px-4 py-3">Form</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
-          {standings.map((team) => (
-            <tr key={team.id}>
-              <td className="px-4 py-3 font-medium">{team.name}</td>
-              <td className="px-4 py-3">{team.wins ?? 0}</td>
-              <td className="px-4 py-3">{team.draws ?? 0}</td>
-              <td className="px-4 py-3">{team.losses ?? 0}</td>
-              <td className="px-4 py-3">{team.pointDiff ?? 0}</td>
-              <td className="px-4 py-3 font-semibold">{team.points ?? 0}</td>
-              <td className="px-4 py-3">{team.fans.toLocaleString()}</td>
-              <td className="px-4 py-3">
-                {team.budget.toLocaleString(undefined, {
-                  style: "currency",
-                  currency: "EUR",
-                  maximumFractionDigits: 0,
-                })}
-              </td>
-            </tr>
-          ))}
+          {standings.map((team) => {
+            const teamResults = results
+              .filter((r) => r.teamAId === team.id || r.teamBId === team.id)
+              .sort((a, b) => b.roundNumber - a.roundNumber)
+              .slice(0, 5);
+
+            return (
+              <tr key={team.id}>
+                <td className="px-4 py-3 font-medium">{team.name}</td>
+                <td className="px-4 py-3">{team.wins ?? 0}</td>
+                <td className="px-4 py-3">{team.draws ?? 0}</td>
+                <td className="px-4 py-3">{team.losses ?? 0}</td>
+                <td className="px-4 py-3">{team.pointDiff ?? 0}</td>
+                <td className="px-4 py-3 font-semibold">{team.points ?? 0}</td>
+                <td className="px-4 py-3">{team.fans.toLocaleString()}</td>
+                <td className="px-4 py-3">
+                  {team.budget.toLocaleString(undefined, {
+                    style: "currency",
+                    currency: "EUR",
+                    maximumFractionDigits: 0,
+                  })}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1.5">
+                    {teamResults.reverse().map((r) => {
+                      const outcome = r.teamAId === team.id ? r.resultA : r.resultB;
+                      let colorClass = "bg-slate-300";
+                      if (outcome === "win") colorClass = "bg-green-500";
+                      if (outcome === "loss") colorClass = "bg-red-500";
+                      if (outcome === "draw") colorClass = "bg-amber-500";
+                      
+                      return (
+                        <span 
+                          key={r.id} 
+                          className={`h-2.5 w-2.5 rounded-full ${colorClass}`}
+                          title={outcome.charAt(0).toUpperCase() + outcome.slice(1)} 
+                        />
+                      );
+                    })}
+                    {Array.from({ length: Math.max(0, 5 - teamResults.length) }).map((_, i) => (
+                      <span key={`empty-${i}`} className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       </div>

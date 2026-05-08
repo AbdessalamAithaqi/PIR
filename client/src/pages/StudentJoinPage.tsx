@@ -715,7 +715,13 @@ function StudentDashboard({
             decisionOpen={decisionOpen}
           />
         )}
-        {activeTab === "leaderboard" && <LeaderboardTab game={game} standings={standings} />}
+        {activeTab === "leaderboard" && (
+          <LeaderboardTab 
+            game={game} 
+            standings={standings} 
+            results={gameDetails?.results ?? []} 
+          />
+        )}
         {activeTab === "report" && (
           <ReportTab standings={standings} results={gameDetails?.results ?? []} />
         )}
@@ -998,6 +1004,7 @@ function MarketingTab({
 function LeaderboardTab({
   game,
   standings,
+  results,
 }: {
   game: GameSummary;
   standings: {
@@ -1009,6 +1016,7 @@ function LeaderboardTab({
     pointDiff: number;
     points: number;
   }[];
+  results: MatchResult[];
 }) {
   return (
     <Card className="overflow-hidden">
@@ -1035,25 +1043,48 @@ function LeaderboardTab({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {standings.map((standing, index) => (
-              <tr key={standing.team.id}>
-                <td className="px-4 py-3 font-medium">{index + 1}</td>
-                <td className="px-4 py-3">{standing.team.name}</td>
-                <td className="px-4 py-3">{standing.played}</td>
-                <td className="px-4 py-3">{standing.wins}</td>
-                <td className="px-4 py-3">{standing.draws}</td>
-                <td className="px-4 py-3">{standing.losses}</td>
-                <td className="px-4 py-3">{standing.pointDiff}</td>
-                <td className="px-4 py-3 font-semibold">{standing.points}</td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1.5">
-                    {[0, 1, 2, 3, 4].map((item) => (
-                      <span key={item} className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {standings.map((standing, index) => {
+              const teamResults = results
+                .filter((r) => r.teamAId === standing.team.id || r.teamBId === standing.team.id)
+                .sort((a, b) => b.roundNumber - a.roundNumber)
+                .slice(0, 5);
+
+              return (
+                <tr key={standing.team.id}>
+                  <td className="px-4 py-3 font-medium">{index + 1}</td>
+                  <td className="px-4 py-3">{standing.team.name}</td>
+                  <td className="px-4 py-3">{standing.played}</td>
+                  <td className="px-4 py-3">{standing.wins}</td>
+                  <td className="px-4 py-3">{standing.draws}</td>
+                  <td className="px-4 py-3">{standing.losses}</td>
+                  <td className="px-4 py-3">{standing.pointDiff}</td>
+                  <td className="px-4 py-3 font-semibold">{standing.points}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-1.5">
+                      {teamResults.reverse().map((r) => {
+                        const outcome = r.teamAId === standing.team.id ? r.resultA : r.resultB;
+                        let colorClass = "bg-slate-300";
+                        if (outcome === "win") colorClass = "bg-green-500";
+                        if (outcome === "loss") colorClass = "bg-red-500";
+                        if (outcome === "draw") colorClass = "bg-amber-500";
+                        
+                        return (
+                          <span 
+                            key={r.id} 
+                            className={`h-2.5 w-2.5 rounded-full ${colorClass}`}
+                            title={outcome.charAt(0).toUpperCase() + outcome.slice(1)} 
+                          />
+                        );
+                      })}
+                      {/* Fill remaining slots with empty circles if less than 5 games played */}
+                      {Array.from({ length: Math.max(0, 5 - teamResults.length) }).map((_, i) => (
+                        <span key={`empty-${i}`} className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
