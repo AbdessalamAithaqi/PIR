@@ -2,6 +2,7 @@
   "name": "rugby-game-manager",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Rugby game management platform",
   "scripts": {
     "dev": "tsx src/server.ts",
