@@ -300,6 +300,24 @@ export function StudentJoinPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
+  function leaveGame() {
+    window.localStorage.removeItem(JOINED_GAME_STORAGE_KEY);
+    setScreen("join");
+    setActiveTab("team");
+    setJoinCode("");
+    setGame(null);
+    setGameDetails(null);
+    setTeam(null);
+    setLineup(startingPlayers);
+    setBench(benchPlayers);
+    setSelectedLineupId(null);
+    setBids({});
+    setMarketingSpend({});
+    setReady(false);
+    setRefreshing(false);
+    setError("");
+  }
+
   useEffect(() => {
     const storedGame = window.localStorage.getItem(JOINED_GAME_STORAGE_KEY);
     if (!storedGame) return;
@@ -578,6 +596,9 @@ export function StudentJoinPage() {
           <p className="mt-2 text-sm text-slate-500">
             You joined {game.name}. Keep this page open while the professor places you in a team.
           </p>
+          <Button type="button" variant="secondary" onClick={leaveGame} className="mt-6 w-full">
+            Leave game
+          </Button>
         </Card>
       </main>
     );
@@ -611,6 +632,7 @@ export function StudentJoinPage() {
         onMarketing={submitMarketing}
         onReady={markReady}
         onRefresh={refreshDashboard}
+        onLeaveGame={leaveGame}
         refreshing={refreshing}
         error={error}
         onDismissError={() => setError("")}
@@ -690,6 +712,7 @@ function StudentDashboard({
   onMarketing,
   onReady,
   onRefresh,
+  onLeaveGame,
   refreshing,
   error,
   onDismissError,
@@ -725,6 +748,7 @@ function StudentDashboard({
   onMarketing: (spend: Record<string, number>) => void;
   onReady: () => void;
   onRefresh: () => void;
+  onLeaveGame: () => void;
   refreshing: boolean;
   error: string;
   onDismissError: () => void;
@@ -742,9 +766,14 @@ function StudentDashboard({
               <Badge>{decisionOpen ? "Decision open" : "Locked"}</Badge>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:w-auto">
-            <Metric label="Fans" value={team.fans.toLocaleString()} />
-            <Metric label="Budget" value={formatMoney(team.budget)} />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="grid grid-cols-2 gap-3 sm:w-auto">
+              <Metric label="Fans" value={team.fans.toLocaleString()} />
+              <Metric label="Budget" value={formatMoney(team.budget)} />
+            </div>
+            <Button type="button" variant="secondary" onClick={onLeaveGame}>
+              Leave game
+            </Button>
           </div>
         </div>
       </header>
