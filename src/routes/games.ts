@@ -43,26 +43,25 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { name, ownerId } = req.body;
-    
+
     if (!name || !ownerId) {
       return res.status(400).json({ error: "Missing name or ownerId" });
     }
 
-    // Ensure the user exists, or create a mock teacher if not for testing
     let user = await prisma.user.findUnique({ where: { id: ownerId } });
+
     if (!user) {
-       user = await prisma.user.create({
-         data: {
-           id: ownerId,
-           name: "Mock Teacher",
-           role: "TEACHER"
-         }
-       });
+      user = await prisma.user.create({
+        data: {
+          id: ownerId,
+          name: "Ludite Magister",
+          role: "TEACHER",
+        },
+      });
     }
 
-    let joinCode = generateJoinCode();
-    // In a real app we'd loop if not unique, but collisions are rare
-    
+    const joinCode = generateJoinCode();
+
     const newGame = await prisma.gameInstance.create({
       data: {
         name,
@@ -70,10 +69,22 @@ router.post("/", async (req, res) => {
         joinCode,
         status: "CREATED",
         currentRound: 0,
-      }
+        teams: {
+          create: [
+            { name: "Rouge" },
+            { name: "Bleu" },
+            { name: "Jaune" },
+            { name: "Vert" },
+          ],
+        },
+      },
+      include: {
+        teams: true,
+      },
     });
-    
+
     res.status(201).json({ game: newGame });
+
   } catch (error) {
     console.error("Failed to create game:", error);
     res.status(500).json({ error: "Failed to create game" });
