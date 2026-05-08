@@ -26,6 +26,14 @@ type Team = {
   name: string;
   budget: number;
   fans: number;
+  pubScore?: number;
+  merchScore?: number;
+  points?: number;
+  wins?: number;
+  draws?: number;
+  losses?: number;
+  pointDiff?: number;
+  ready?: boolean;
   members: TeamMember[];
 };
 
@@ -40,6 +48,22 @@ type GameDetails = {
   game: GameSummary;
   teams: Team[];
   participants: Participant[];
+  results: MatchResult[];
+};
+
+type MatchResult = {
+  id: string;
+  roundNumber: number;
+  scoreA: number;
+  scoreB: number;
+  resultA: string;
+  resultB: string;
+  fanDeltaA: number;
+  fanDeltaB: number;
+  moneyDeltaA: number;
+  moneyDeltaB: number;
+  teamAId: string;
+  teamBId: string;
 };
 
 type ParameterKey = "injuryChance" | "fanGain" | "financialGrowth" | "luckFactor";
@@ -415,7 +439,7 @@ function StudentPill({
 }: {
   studentId: string;
   name: string;
-  detail?: string;
+  detail?: string | undefined;
   onDragStart: (event: React.DragEvent, studentId: string) => void;
   disabled: boolean;
 }) {
@@ -494,7 +518,8 @@ function RoundManagementTab({
   saving: boolean;
   onRoundAction: (action: "launch" | "stop" | "next") => void;
 }) {
-  const readyStates = [false, false, false, false];
+  const readyStates = teams.slice(0, 4).map((team) => Boolean(team.ready));
+  const readyCount = readyStates.filter(Boolean).length;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
@@ -542,7 +567,7 @@ function RoundManagementTab({
             </div>
           ))}
         </div>
-        <p className="mt-4 text-sm text-slate-500">Ready teams 0 / 4</p>
+        <p className="mt-4 text-sm text-slate-500">Ready teams {readyCount} / {teams.length}</p>
       </Card>
     </div>
   );
@@ -550,13 +575,14 @@ function RoundManagementTab({
 
 function ReportTab({ details }: { details: GameDetails }) {
   const assignedStudents = details.participants.filter((participant) => participant.teamId).length;
+  const latestRound = details.results[details.results.length - 1]?.roundNumber ?? 0;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <ReportTile label="Students" value={details.participants.length} />
       <ReportTile label="Assigned" value={assignedStudents} />
-      <ReportTile label="Teams" value={details.teams.length} />
-      <ReportTile label="Code" value={details.game.joinCode} />
+      <ReportTile label="Rounds played" value={latestRound} />
+      <ReportTile label="Matches" value={details.results.length} />
     </div>
   );
 }
@@ -571,6 +597,13 @@ function ReportTile({ label, value }: { label: string; value: string | number })
 }
 
 function LeaderboardTab({ teams }: { teams: Team[] }) {
+  const standings = [...teams].sort(
+    (a, b) =>
+      (b.points ?? 0) - (a.points ?? 0) ||
+      (b.pointDiff ?? 0) - (a.pointDiff ?? 0) ||
+      b.fans - a.fans,
+  );
+
   return (
     <Card className="overflow-hidden">
       <div className="border-b border-slate-200 px-4 py-3">
@@ -581,16 +614,24 @@ function LeaderboardTab({ teams }: { teams: Team[] }) {
         <thead className="bg-slate-50 text-xs uppercase text-slate-500">
           <tr>
             <th className="px-4 py-3">Team</th>
-            <th className="px-4 py-3">Students</th>
+            <th className="px-4 py-3">W</th>
+            <th className="px-4 py-3">D</th>
+            <th className="px-4 py-3">L</th>
+            <th className="px-4 py-3">PD</th>
+            <th className="px-4 py-3">PTS</th>
             <th className="px-4 py-3">Fans</th>
             <th className="px-4 py-3">Budget</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
-          {teams.map((team) => (
+          {standings.map((team) => (
             <tr key={team.id}>
               <td className="px-4 py-3 font-medium">{team.name}</td>
-              <td className="px-4 py-3">{team.members.length}</td>
+              <td className="px-4 py-3">{team.wins ?? 0}</td>
+              <td className="px-4 py-3">{team.draws ?? 0}</td>
+              <td className="px-4 py-3">{team.losses ?? 0}</td>
+              <td className="px-4 py-3">{team.pointDiff ?? 0}</td>
+              <td className="px-4 py-3 font-semibold">{team.points ?? 0}</td>
               <td className="px-4 py-3">{team.fans.toLocaleString()}</td>
               <td className="px-4 py-3">
                 {team.budget.toLocaleString(undefined, {
