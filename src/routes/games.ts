@@ -645,9 +645,9 @@ async function calculateTeamScore(
   const luckWeight = 0.2 * (parameters.luckFactor / DEFAULT_PARAMETERS.luckFactor);
 
   return (
-    (adjustedPlayerStats / 100) * 0.4 +
+    (adjustedPlayerStats / 100) * 0.5 +
     (team.fans / MAX_FAN_NUMBER) * 0.2 +
-    ((team.pubScore + team.merchScore) / 20) * 0.2 +
+    ((team.pubScore + team.merchScore) / 20) * 0.1 +
     luck * luckWeight
   );
 }
@@ -776,7 +776,7 @@ async function updateTeamAfterMatch(
   const fanGainMultiplier = parameters.fanGain / DEFAULT_PARAMETERS.fanGain;
   const financialGrowthMultiplier = parameters.financialGrowth / DEFAULT_PARAMETERS.financialGrowth;
   const fanGain = Math.round(
-    team.fans * (0.05 + (team.pubScore + team.merchScore) / 50) * fanGainMultiplier,
+    team.fans * (0.05 + (team.pubScore + team.merchScore) / 100) * fanGainMultiplier,
   );
   const fanDelta = fanGain + fanBonus(outcome);
   const nextFans = Math.max(0, Math.min(MAX_FAN_NUMBER, team.fans + fanDelta));
