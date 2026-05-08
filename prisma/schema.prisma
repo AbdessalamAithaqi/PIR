@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -11,8 +8,6 @@ datasource db {
 }
 
 // ─── User ────────────────────────────────────────────────────────────────────
-// Represents both Teachers and Students.
-// Teachers own GameInstances. Students join teams within a game.
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -20,54 +15,55 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // A teacher can own many game instances
-  ownedGames GameInstance[]
-
-  // A student can be a member of many teams (across different games)
+  ownedGames      GameInstance[]
   teamMemberships TeamMember[]
 }
 
 // ─── GameInstance ─────────────────────────────────────────────────────────────
-// Represents a single rugby tournament / game session.
-// Created by a Teacher, identified by a unique join code.
 model GameInstance {
   id           String   @id @default(uuid())
   name         String
   joinCode     String   @unique
-  status       String   @default("CREATED") // CREATED | ACTIVE | PAUSED | FINISHED
-  currentRound Int      @default(0)         // 0 = not started, 1-6 = active rounds
+  status       String   @default("CREATED") // CREATED | ACTIVE | RESOLVING | FINISHED
+  currentRound Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // The teacher who owns/created this game
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id])
 
-  // The 4 teams within this game
-  teams Team[]
+  teams   Team[]
+  players Player[]
+  matches Match[]
 }
 
 // ─── Team ────────────────────────────────────────────────────────────────────
-// One of the 4 teams within a GameInstance.
-// Has a budget and fan count that evolve over rounds.
 model Team {
-  id        String   @id @default(uuid())
-  name      String
-  budget    Float    @default(50000) // START_TEAM_MONEY from formulas
-  fans      Int      @default(1000)  // START_FAN_NUMBER from formulas
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String
+  budget       Float    @default(50000)
+  fans         Int      @default(1000)
+  pubScore     Int      @default(0)   // 0-10
+  merchScore   Int      @default(0)   // 0-10
+  leaguePoints Int      @default(0)
+  wins         Int      @default(0)
+  draws        Int      @default(0)
+  losses       Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  // The game this team belongs to
   gameId String
   game   GameInstance @relation(fields: [gameId], references: [id])
 
-  // Students assigned to this team
-  members TeamMember[]
+  members         TeamMember[]
+  players         Player[]
+  bids            Bid[]
+  decisions       Decision[]
+  matchesAsTeamA  Match[]      @relation("TeamAMatches")
+  matchesAsTeamB  Match[]      @relation("TeamBMatches")
 }
 
 // ─── TeamMember ──────────────────────────────────────────────────────────────
-// Junction table: assigns a Student to a Team within a specific game.
 model TeamMember {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
@@ -78,6 +74,79 @@ model TeamMember {
   teamId String
   team   Team   @relation(fields: [teamId], references: [id])
 
-  // A student can only be on one team per game
   @@unique([userId, teamId])
+}
+
+// ─── Player ──────────────────────────────────────────────────────────────────
+model Player {
+  id             String   @id @default(uuid())
+  name           String
+  position       String   // "Prop" | "Hooker" | "Lock" | etc.
+  skillScore     Int
+  basePrice      Int
+  generatedRound Int
+  status         String   @default("MARKET") // MARKET | OWNED
+  createdAt      DateTime @default(now())
+
+  gameId String
+  game   GameInstance @relation(fields: [gameId], references: [id])
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  bids Bid[]
+}
+
+// ─── Bid ──────────────────────────────────────────────────────────────────────
+model Bid {
+  id          String   @id @default(uuid())
+  roundNumber Int
+  amount      Int
+  status      String   @default("ACTIVE") // ACTIVE | WON | LOST
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id])
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@unique([roundNumber, playerId, teamId])
+}
+
+// ─── Decision ─────────────────────────────────────────────────────────────────
+model Decision {
+  id               String   @id @default(uuid())
+  roundNumber      Int
+  pubInvestments   Int      @default(0)
+  merchInvestments Int      @default(0)
+  ready            Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@unique([roundNumber, teamId])
+}
+
+// ─── Match ────────────────────────────────────────────────────────────────────
+model Match {
+  id           String   @id @default(uuid())
+  roundNumber  Int
+  teamAScore   Float?
+  teamBScore   Float?
+  winnerTeamId String?
+  played       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  gameId String
+  game   GameInstance @relation(fields: [gameId], references: [id])
+
+  teamAId String
+  teamA   Team   @relation("TeamAMatches", fields: [teamAId], references: [id])
+
+  teamBId String
+  teamB   Team   @relation("TeamBMatches", fields: [teamBId], references: [id])
 }

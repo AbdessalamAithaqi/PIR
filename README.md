@@ -1,144 +1,415 @@
 # Rugby Game Manager - Developer Guide
 
-Welcome to the decoupled architecture of the Rugby Game Manager! This project is split into two completely separate domains: a **Node.js/Express Backend** and a **Vite/React Frontend**. 
+This project uses a decoupled architecture:
 
-This guide explains the project structure and defines the exact workflow you should follow when adding new features, pages, or data logic.
+- **Backend:** Node.js + Express + Prisma + SQLite
+- **Frontend:** Vite + React + Tailwind
+
+The backend and frontend are separate apps. During development, both must be running at the same time.
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```text
-/PIR 
-├── package.json        <-- Express & Prisma dependencies (Backend)
-├── prisma/             
-│   └── schema.prisma   <-- Your Database Schema! Define tables here.
-├── src/                
-│   ├── server.ts       <-- Express Server initialization
-│   └── routes/         <-- API route handlers (e.g., games.js, teams.js)
+/PIR
+├── package.json              <-- Backend dependencies and scripts
+├── .env                      <-- Backend environment variables
+├── dev.db                    <-- Local SQLite database
+├── prisma/
+│   └── schema.prisma         <-- Database schema
+├── prisma.config.ts          <-- Prisma configuration
+├── src/
+│   ├── server.ts             <-- Express server entry point
+│   ├── lib/
+│   │   └── prisma.ts         <-- Prisma client setup
+│   ├── routes/               <-- API route handlers
+│   └── generated/prisma/     <-- Generated Prisma client
 │
-└── client/             <-- THE FRONTEND APPLICATION
-    ├── package.json    <-- React & Tailwind dependencies
-    ├── vite.config.ts  <-- Configured to proxy /api traffic to our backend
-    └── src/            
-        ├── index.css   <-- Tailwind v4 import
-        ├── App.tsx     <-- React Root Component (Add Routing here later)
-        ├── components/ <-- Reusable UI (Buttons, Cards, Modals)
-        └── pages/      <-- Full page components (Dashboard, GameView)
+└── client/
+    ├── package.json          <-- Frontend dependencies and scripts
+    ├── vite.config.ts        <-- Vite config, proxies /api to backend
+    └── src/
+        ├── index.css         <-- Tailwind import
+        ├── App.tsx           <-- React root component / routing
+        ├── components/       <-- Reusable UI components
+        └── pages/            <-- Full page components
 ```
 
 ---
 
-## 🚀 How to Run the Project
+## Required Node Version
 
-Because the frontend and backend are decoupled, you need to run **two terminal tabs** during development:
+The frontend uses recent versions of Vite, React Router, and Tailwind.
 
-1. **Start the Backend API:** 
-   Open a terminal in the root `/PIR` directory and run:
-   ```bash
-   npx tsx src/server.ts
-   ```
-   *(Runs on http://localhost:3000)*
+You need **Node 20.19+**.
 
-2. **Start the Frontend UI:** 
-   Open a second terminal, navigate into the `/client` directory, and run:
-   ```bash
-   cd client
-   npm run dev
-   ```
-   *(Runs on http://localhost:5173 - this is where you open your browser!)*
+Check your version:
+
+```bash
+node -v
+```
+
+If your version is too old, install Node 20 using `nvm`:
+
+```bash
+nvm install 20
+nvm use 20
+nvm alias default 20
+```
+
+Then check again:
+
+```bash
+node -v
+```
 
 ---
 
-## 🛠️ The 4-Step Feature Workflow
+## First-Time Setup
 
-When building a new feature (for example, "Adding a Player Profile Page"), you should always build "Back-to-Front" by following this exact 4-step loop.
+From the project root:
 
-### Step 1: Define the Data Structure (Prisma)
-Before you write any code or design any buttons, figure out what data you need to store. Open `prisma/schema.prisma` and define a new model.
+```bash
+cd ~/Documents/INSA/PIR/PIR
+```
+
+Install backend dependencies:
+
+```bash
+npm install
+```
+
+Create the `.env` file if it does not already exist:
+
+```bash
+echo 'DATABASE_URL="file:./dev.db"' > .env
+```
+
+Generate the Prisma client:
+
+```bash
+npx prisma generate
+```
+
+Synchronize the SQLite database with the Prisma schema:
+
+```bash
+npx prisma db push
+```
+
+Then install frontend dependencies:
+
+```bash
+cd client
+npm install
+```
+
+---
+
+## How to Run the Project
+
+You need **two terminals**.
+
+### Terminal 1: Backend
+
+From the project root:
+
+```bash
+cd ~/Documents/INSA/PIR/PIR
+npm run dev
+```
+
+The backend should run on:
+
+```text
+http://localhost:3000
+```
+
+### Terminal 2: Frontend
+
+From the frontend folder:
+
+```bash
+cd ~/Documents/INSA/PIR/PIR/client
+npm run dev
+```
+
+The frontend should run on:
+
+```text
+http://localhost:5173
+```
+
+Open this in the browser:
+
+```text
+http://localhost:5173
+```
+
+---
+
+## Common Errors
+
+### 1. Vite says Node is too old
+
+Error:
+
+```text
+Vite requires Node.js version 20.19+ or 22.12+
+```
+
+Fix:
+
+```bash
+nvm install 20
+nvm use 20
+```
+
+Then reinstall frontend dependencies:
+
+```bash
+cd client
+rm -rf node_modules package-lock.json
+npm install
+npm run dev
+```
+
+---
+
+### 2. Frontend says “Failed to load games”
+
+Terminal error:
+
+```text
+http proxy error: /api/games
+Error: connect ECONNREFUSED 127.0.0.1:3000
+```
+
+This means the frontend is running, but the backend is not.
+
+Fix: start the backend in another terminal:
+
+```bash
+cd ~/Documents/INSA/PIR/PIR
+npm run dev
+```
+
+---
+
+### 3. Backend cannot find Prisma client
+
+Error:
+
+```text
+Cannot find module '../generated/prisma/client.js'
+```
+
+Fix:
+
+```bash
+cd ~/Documents/INSA/PIR/PIR
+npx prisma generate
+npm run dev
+```
+
+---
+
+### 4. Prisma says datasource.url is required
+
+Error:
+
+```text
+The datasource.url property is required
+```
+
+Fix:
+
+```bash
+cd ~/Documents/INSA/PIR/PIR
+echo 'DATABASE_URL="file:./dev.db"' > .env
+npx prisma db push
+```
+
+---
+
+## Database Workflow
+
+The database schema is defined in:
+
+```text
+prisma/schema.prisma
+```
+
+When you change the schema, run:
+
+```bash
+npx prisma generate
+npx prisma db push
+```
+
+For this hackathon, we use:
+
+```bash
+npx prisma db push
+```
+
+instead of migrations because it is faster for quick development.
+
+In a production project, we would use proper Prisma migrations.
+
+---
+
+## Feature Workflow
+
+When adding a new feature, build it back-to-front.
+
+### Step 1: Define the Data Structure
+
+Edit:
+
+```text
+prisma/schema.prisma
+```
+
+Example:
 
 ```prisma
-// prisma/schema.prisma
 model Player {
-  id     Int    @id @default(autoincrement())
-  name   String
-  teamId Int
+  id         String @id @default(uuid())
+  name       String
+  position   String
+  skillScore Int
 }
 ```
-*Run `npx prisma db push` to instantly generate the actual SQL tables.*
 
-### Step 2: Build the Backend Route (Express)
-Now that the database knows what a Player is, you need to expose that data so the frontend can retrieve it. Go to `src/server.ts` (or `src/routes/players.ts` if you organize your files) and create an endpoint.
+Then run:
 
-```typescript
-// src/server.ts
-import { PrismaClient } from '@prisma/client'
-const prisma = new PrismaClient()
+```bash
+npx prisma generate
+npx prisma db push
+```
 
-app.get('/api/players', async (req, res) => {
-  // Fetch all players from PostgreSQL using Prisma
+---
+
+### Step 2: Build the Backend Route
+
+Create or edit a route file in:
+
+```text
+src/routes/
+```
+
+Example:
+
+```ts
+app.get("/api/players", async (req, res) => {
   const players = await prisma.player.findMany();
-  // Express sends it back to the client as JSON
   res.json(players);
 });
 ```
 
-### Step 3: Build the Frontend UI (React + Tailwind v4)
-Leave the backend alone now. Open `/client/src/components/` and build a shiny new React component. Use dummy data temporarily so you can focus entirely on styling with Tailwind classes.
+Backend responsibilities:
+
+```text
+validation
+database access
+game rules
+auction logic
+match simulation
+round closing
+```
+
+---
+
+### Step 3: Build the Frontend UI with Mock Data
+
+Create the page or component in:
+
+```text
+client/src/pages/
+client/src/components/
+```
+
+Use temporary fake data first so the UI can be built without waiting for the backend.
+
+Example:
 
 ```tsx
-// client/src/components/PlayerList.tsx
 export function PlayerList() {
+  const players = [
+    { id: "1", name: "Player A", skillScore: 80 },
+    { id: "2", name: "Player B", skillScore: 75 },
+  ];
+
   return (
-    <div className="p-4 bg-gray-100 rounded-lg shadow-md">
-       <h2 className="text-xl font-bold text-blue-600">Player Roster</h2>
-       {/* List will go here */}
+    <div className="p-4 rounded-lg shadow-md bg-white">
+      <h2 className="text-xl font-bold">Player Roster</h2>
+
+      <ul className="mt-4 space-y-2">
+        {players.map((player) => (
+          <li key={player.id} className="p-2 border rounded">
+            {player.name} - {player.skillScore}
+          </li>
+        ))}
+      </ul>
     </div>
-  )
+  );
 }
 ```
 
-### Step 4: Wire them together (React Hooks)
-Finally, connect your React frontend to your Express backend. You will use `useEffect` to trigger a `fetch()` request to `/api/players` the moment the page loads, and `useState` to update the screen once the data comes back.
+---
 
-Because we configured Vite with an API proxy, you don't need to specify `http://localhost:3000` in your fetch calls. Just call `/api/...` directly!
+### Step 4: Wire Frontend to Backend
+
+Because Vite proxies `/api` to the backend, frontend fetch calls should use:
+
+```ts
+fetch("/api/...")
+```
+
+Do **not** write:
+
+```ts
+fetch("http://localhost:3000/api/...")
+```
+
+Example:
 
 ```tsx
-// client/src/components/PlayerList.tsx
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from "react";
 
 export function PlayerList() {
-  // 1. Setup State to hold the backend data
   const [players, setPlayers] = useState([]);
 
-  // 2. Fetch the data right when the component loads
   useEffect(() => {
-    fetch('/api/players')
-      .then(res => res.json())
-      .then(data => setPlayers(data));
+    fetch("/api/players")
+      .then((res) => res.json())
+      .then((data) => setPlayers(data));
   }, []);
 
-  // 3. Render the dynamic data
   return (
-    <div className="p-4 bg-gray-100 rounded-lg shadow-md">
-       <h2 className="text-xl font-bold text-blue-600">Player Roster</h2>
-       
-       <ul className="mt-4 space-y-2">
-         {players.map(player => (
-           <li key={player.id} className="p-2 bg-white border border-gray-300 rounded">
-             {player.name}
-           </li>
-         ))}
-       </ul>
-       
+    <div className="p-4 rounded-lg shadow-md bg-white">
+      <h2 className="text-xl font-bold">Player Roster</h2>
+
+      <ul className="mt-4 space-y-2">
+        {players.map((player: any) => (
+          <li key={player.id} className="p-2 border rounded">
+            {player.name}
+          </li>
+        ))}
+      </ul>
     </div>
-  )
+  );
 }
 ```
 
-## 🧠 Core Philosophy
-* **React** handles what things look like and clicking interactions.
-* **Express** handles complex game rules, math, and validation.
-* **Prisma** exclusively handles talking to the PostgreSQL database. 
+---
 
-By strictly following these 4 steps every time you add a feature, your project will remain incredibly clean and scalable!
+## Core Philosophy
+
+- **React** handles pages, components, styling, and user interaction.
+- **Express** handles API routes, validation, and game logic.
+- **Prisma** handles database access.
+- **SQLite** is used for local hackathon development.
+- **Vite** serves the frontend and proxies `/api` calls to the backend.
