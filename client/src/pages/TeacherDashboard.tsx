@@ -14,6 +14,36 @@ type GameInstance = {
 
 const ownerId = "teacher-123";
 
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function Button({
+  children,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...props}
+      className={cn(
+        "inline-flex h-10 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+      {children}
+    </span>
+  );
+}
+
 export function TeacherDashboard() {
   const [games, setGames] = useState<GameInstance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,41 +91,64 @@ export function TeacherDashboard() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-white p-12 text-4xl text-black">Loading games...</div>;
+    return (
+      <main className="min-h-screen bg-slate-50 p-8 text-slate-950">
+        <div className="mx-auto max-w-5xl text-sm text-slate-500">Loading games...</div>
+      </main>
+    );
   }
 
   return (
-    <main className="min-h-screen bg-white px-10 py-12 text-black sm:px-20">
-      <button
-        type="button"
-        onClick={createGame}
-        disabled={creating}
-        className="mb-16 rounded-2xl border border-black bg-white px-12 py-8 text-6xl font-normal transition hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {creating ? "Creating" : "New game"}
-      </button>
+    <main className="min-h-screen bg-slate-50 text-slate-950">
+      <section className="mx-auto grid max-w-5xl gap-6 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Badge>Teacher console</Badge>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight">Game management</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Create leagues and share join codes with students.
+            </p>
+          </div>
+          <Button type="button" onClick={createGame} disabled={creating}>
+            {creating ? "Creating..." : "Create game"}
+          </Button>
+        </div>
 
-      {error && (
-        <p className="mb-8 text-2xl text-red-600" role="alert">
-          {error}
-        </p>
-      )}
-
-      <section className="grid gap-10">
-        {games.length === 0 ? (
-          <p className="text-4xl text-gray-500">No games created yet.</p>
-        ) : (
-          games.map((game) => (
-            <Link
-              key={game.id}
-              to={`/teacher/games/${game.id}`}
-              className="grid min-h-36 grid-cols-1 items-center rounded-2xl border border-black px-14 py-7 text-black no-underline transition hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-blue-100 md:grid-cols-[1fr_auto] md:gap-12"
-            >
-              <span className="text-6xl font-normal">{game.name}</span>
-              <span className="font-mono text-6xl font-normal tracking-wide">{game.joinCode}</span>
-            </Link>
-          ))
+        {error && (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+            {error}
+          </p>
         )}
+
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-4 py-3">
+            <h2 className="font-medium">Existing games</h2>
+          </div>
+          {games.length === 0 ? (
+            <p className="px-4 py-8 text-sm text-slate-500">No games created yet.</p>
+          ) : (
+            <div className="divide-y divide-slate-200">
+              {games.map((game) => (
+                <Link
+                  key={game.id}
+                  to={`/teacher/games/${game.id}`}
+                  className="grid gap-3 px-4 py-4 text-slate-950 no-underline transition hover:bg-slate-50 sm:grid-cols-[1fr_auto] sm:items-center"
+                >
+                  <div>
+                    <p className="font-medium">{game.name}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Round {game.currentRound} · {game.status} · {game._count.teams} teams
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-lg font-semibold">{game.joinCode}</span>
+                    <Badge>Open</Badge>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );

@@ -66,6 +66,56 @@ const defaultParameters: Record<ParameterKey, number> = {
   luckFactor: 50,
 };
 
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+      {children}
+    </span>
+  );
+}
+
+function Button({
+  children,
+  className,
+  variant = "primary",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost";
+}) {
+  return (
+    <button
+      {...props}
+      className={cn(
+        "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        variant === "primary" && "bg-slate-950 text-white hover:bg-slate-800",
+        variant === "secondary" && "border border-slate-200 bg-white text-slate-950 hover:bg-slate-50",
+        variant === "ghost" && "text-slate-700 hover:bg-slate-100 hover:text-slate-950",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Card({
+  children,
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & {
+  children: React.ReactNode;
+}) {
+  return (
+    <div {...props} className={cn("rounded-lg border border-slate-200 bg-white shadow-sm", className)}>
+      {children}
+    </div>
+  );
+}
+
 export function TeacherGamePage() {
   const { gameId } = useParams();
   const [activeTab, setActiveTab] = useState<TeacherTab>("teams");
@@ -164,60 +214,72 @@ export function TeacherGamePage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-white p-12 text-4xl text-black">Loading game...</div>;
+    return <div className="min-h-screen bg-slate-50 p-8 text-sm text-slate-500">Loading game...</div>;
   }
 
   if (!details) {
     return (
-      <main className="min-h-screen bg-white p-12 text-black">
-        <Link to="/teacher" className="text-4xl text-black underline">
+      <main className="min-h-screen bg-slate-50 p-8 text-slate-950">
+        <Link to="/teacher" className="text-sm font-medium text-slate-700 hover:text-slate-950">
           Back
         </Link>
-        <p className="mt-12 text-4xl text-red-600">{error || "Game not found"}</p>
+        <p className="mt-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error || "Game not found"}
+        </p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-white text-black">
-      <header className="border-b border-black px-8 py-8">
-        <div className="flex flex-wrap items-center gap-12">
-          <Link
-            to="/teacher"
-            className="rounded-2xl border border-black px-12 py-8 text-6xl text-black no-underline transition hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-blue-100"
-          >
-            Back
-          </Link>
-          <h1 className="text-6xl font-normal underline">{details.game.name}</h1>
-          <div className="ml-auto text-right">
-            <p className="font-mono text-4xl">{details.game.joinCode}</p>
-            <p className="text-xl uppercase tracking-wide">{details.game.status}</p>
+    <main className="min-h-screen bg-slate-50 text-slate-950">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="flex items-center gap-3">
+            <Link
+              to="/teacher"
+              className="inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 no-underline transition hover:bg-slate-50 hover:text-slate-950"
+            >
+              Back
+            </Link>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">{details.game.name}</h1>
+              <p className="text-sm text-slate-500">Teacher management</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>{details.game.status}</Badge>
+            <span className="rounded-md bg-slate-950 px-3 py-1.5 font-mono text-sm font-semibold text-white">
+              {details.game.joinCode}
+            </span>
           </div>
         </div>
       </header>
 
-      <nav className="flex flex-wrap gap-5 border-b border-black px-8 py-5">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`border border-black px-1 text-4xl font-normal transition hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-blue-100 xl:text-5xl ${
-              activeTab === tab.id ? "bg-gray-100 underline" : "bg-white"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <nav className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 py-2 sm:px-6 lg:px-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950",
+                activeTab === tab.id && "bg-slate-950 text-white hover:bg-slate-950 hover:text-white",
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </nav>
 
       {error && (
-        <p className="px-8 pt-6 text-2xl text-red-600" role="alert">
+        <p className="mx-auto mt-4 max-w-7xl rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
           {error}
         </p>
       )}
 
-      <section className="px-5 py-6">
+      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {activeTab === "teams" && (
           <TeamsTab
             participants={details.participants}
@@ -270,9 +332,9 @@ function TeamsTab({
   );
 
   return (
-    <div className="grid min-h-[720px] grid-cols-1 gap-3 lg:grid-cols-[380px_1fr]">
-      <aside
-        className="border border-black p-8"
+    <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
+      <Card
+        className="p-4"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
@@ -280,10 +342,15 @@ function TeamsTab({
           if (studentId) onUnassign(studentId);
         }}
       >
-        <h2 className="mb-6 text-4xl font-bold">Name List</h2>
-        <div className="grid gap-4">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-semibold">Joined students</h2>
+          <Badge>{participants.length}</Badge>
+        </div>
+        <div className="grid gap-2">
           {participants.length === 0 ? (
-            <p className="text-3xl text-gray-500">No students</p>
+            <p className="rounded-md border border-dashed border-slate-200 px-3 py-8 text-center text-sm text-slate-500">
+              No students yet
+            </p>
           ) : (
             participants.map((participant) => (
               <StudentPill
@@ -297,13 +364,13 @@ function TeamsTab({
             ))
           )}
         </div>
-      </aside>
+      </Card>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {teams.slice(0, 4).map((team) => (
-          <section
+          <Card
             key={team.id}
-            className="min-h-80 border border-black p-8 transition hover:bg-gray-50"
+            className="min-h-56 p-4 transition hover:border-slate-300"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
@@ -311,10 +378,15 @@ function TeamsTab({
               if (studentId) onAssign(studentId, team.id);
             }}
           >
-            <h2 className="mb-6 text-4xl font-bold">{team.name}</h2>
-            <div className="grid gap-4">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-semibold">{team.name}</h2>
+              <Badge>{team.members.length} members</Badge>
+            </div>
+            <div className="grid gap-2">
               {team.members.length === 0 ? (
-                <p className="text-3xl text-gray-500">Empty</p>
+                <p className="rounded-md border border-dashed border-slate-200 px-3 py-8 text-center text-sm text-slate-500">
+                  Drop students here
+                </p>
               ) : (
                 team.members.map((member) => (
                   <StudentPill
@@ -327,7 +399,7 @@ function TeamsTab({
                 ))
               )}
             </div>
-          </section>
+          </Card>
         ))}
       </div>
     </div>
@@ -351,10 +423,10 @@ function StudentPill({
     <div
       draggable={!disabled}
       onDragStart={(event) => onDragStart(event, studentId)}
-      className="cursor-move rounded border border-black bg-white px-4 py-3 text-3xl"
+      className="cursor-move rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition hover:bg-slate-50"
     >
-      <span>{name}</span>
-      {detail && <span className="ml-3 text-xl text-gray-500">{detail}</span>}
+      <span className="font-medium">{name}</span>
+      {detail && <span className="ml-2 text-xs text-slate-500">{detail}</span>}
     </div>
   );
 }
@@ -367,10 +439,16 @@ function ParametersTab({
   onChange: (parameters: Record<ParameterKey, number>) => void;
 }) {
   return (
-    <div className="grid max-w-3xl gap-16 px-10 py-24">
+    <Card className="max-w-3xl p-5">
+      <div className="mb-5">
+        <h2 className="font-semibold">Game parameters</h2>
+        <p className="text-sm text-slate-500">Tune global simulation variables.</p>
+      </div>
+      <div className="grid gap-5">
       {(Object.keys(parameters) as ParameterKey[]).map((key) => (
-        <label key={key} className="grid grid-cols-[1fr_132px] items-center gap-10">
-          <span className="text-6xl underline">{parameterLabels[key]}</span>
+        <label key={key} className="grid gap-2">
+          <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium">{parameterLabels[key]}</span>
           <input
             type="number"
             min={0}
@@ -382,8 +460,9 @@ function ParametersTab({
                 [key]: Number(event.target.value),
               })
             }
-            className="h-16 rounded-lg border border-black px-4 text-center text-3xl outline-none focus:ring-4 focus:ring-blue-100"
+            className="h-9 w-20 rounded-md border border-slate-200 px-2 text-center text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
           />
+          </div>
           <input
             type="range"
             min={0}
@@ -395,11 +474,12 @@ function ParametersTab({
                 [key]: Number(event.target.value),
               })
             }
-            className="col-span-2 w-full"
+            className="w-full accent-slate-950"
           />
         </label>
       ))}
-    </div>
+      </div>
+    </Card>
   );
 }
 
@@ -417,51 +497,53 @@ function RoundManagementTab({
   const readyStates = [false, false, false, false];
 
   return (
-    <div className="grid gap-12 px-10 py-24 lg:grid-cols-[320px_1fr]">
-      <div className="grid max-w-80 gap-12">
-        <button
+    <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+      <Card className="grid content-start gap-3 p-4">
+        <Button
           type="button"
           disabled={saving}
           onClick={() => onRoundAction("launch")}
-          className="rounded-2xl border border-black bg-white px-10 py-7 text-6xl underline transition hover:bg-gray-50 disabled:opacity-60"
         >
           Launch
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           disabled={saving}
           onClick={() => onRoundAction("next")}
-          className="rounded-2xl border border-black bg-white px-10 py-7 text-6xl underline transition hover:bg-gray-50 disabled:opacity-60"
+          variant="secondary"
         >
-          Next
-        </button>
-        <button
+          Move to next round
+        </Button>
+        <Button
           type="button"
           disabled={saving}
           onClick={() => onRoundAction("stop")}
-          className="rounded-2xl border border-black bg-white px-10 py-7 text-6xl underline transition hover:bg-gray-50 disabled:opacity-60"
+          variant="secondary"
         >
           Stop
-        </button>
-      </div>
+        </Button>
+      </Card>
 
-      <div className="grid content-start gap-10">
-        <div>
-          <p className="text-5xl">Round {game.currentRound} / 6</p>
-          <p className="mt-3 text-3xl uppercase tracking-wide">{game.status}</p>
+      <Card className="p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Round {game.currentRound} / 6</h2>
+            <p className="mt-1 text-sm text-slate-500">Current state: {game.status}</p>
+          </div>
+          <Badge>{game.status}</Badge>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-wrap gap-3">
           {readyStates.map((ready, index) => (
             <div
               key={teams[index]?.id ?? index}
-              className="flex h-28 w-28 items-center justify-center rounded-2xl border border-black text-7xl"
+              className="flex h-14 w-14 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-xl font-semibold"
             >
               {ready ? "✓" : "×"}
             </div>
           ))}
         </div>
-        <p className="text-3xl">Ready teams 0 / 4</p>
-      </div>
+        <p className="mt-4 text-sm text-slate-500">Ready teams 0 / 4</p>
+      </Card>
     </div>
   );
 }
@@ -470,7 +552,7 @@ function ReportTab({ details }: { details: GameDetails }) {
   const assignedStudents = details.participants.filter((participant) => participant.teamId).length;
 
   return (
-    <div className="grid gap-8 p-10 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <ReportTile label="Students" value={details.participants.length} />
       <ReportTile label="Assigned" value={assignedStudents} />
       <ReportTile label="Teams" value={details.teams.length} />
@@ -481,32 +563,36 @@ function ReportTab({ details }: { details: GameDetails }) {
 
 function ReportTile({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="border border-black p-8">
-      <p className="text-3xl">{label}</p>
-      <p className="mt-8 text-6xl">{value}</p>
-    </div>
+    <Card className="p-5">
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-semibold">{value}</p>
+    </Card>
   );
 }
 
 function LeaderboardTab({ teams }: { teams: Team[] }) {
   return (
-    <div className="overflow-x-auto p-10">
-      <table className="w-full min-w-[760px] border-collapse text-left text-3xl">
-        <thead>
+    <Card className="overflow-hidden">
+      <div className="border-b border-slate-200 px-4 py-3">
+        <h2 className="font-semibold">Leaderboard</h2>
+      </div>
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[760px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
           <tr>
-            <th className="border border-black p-4">Team</th>
-            <th className="border border-black p-4">Students</th>
-            <th className="border border-black p-4">Fans</th>
-            <th className="border border-black p-4">Budget</th>
+            <th className="px-4 py-3">Team</th>
+            <th className="px-4 py-3">Students</th>
+            <th className="px-4 py-3">Fans</th>
+            <th className="px-4 py-3">Budget</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-200">
           {teams.map((team) => (
             <tr key={team.id}>
-              <td className="border border-black p-4">{team.name}</td>
-              <td className="border border-black p-4">{team.members.length}</td>
-              <td className="border border-black p-4">{team.fans.toLocaleString()}</td>
-              <td className="border border-black p-4">
+              <td className="px-4 py-3 font-medium">{team.name}</td>
+              <td className="px-4 py-3">{team.members.length}</td>
+              <td className="px-4 py-3">{team.fans.toLocaleString()}</td>
+              <td className="px-4 py-3">
                 {team.budget.toLocaleString(undefined, {
                   style: "currency",
                   currency: "EUR",
@@ -517,6 +603,7 @@ function LeaderboardTab({ teams }: { teams: Team[] }) {
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </Card>
   );
 }
