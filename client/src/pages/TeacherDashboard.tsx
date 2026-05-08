@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 type GameInstance = {
   id: string;
@@ -11,13 +12,13 @@ type GameInstance = {
   };
 };
 
+const ownerId = "teacher-123";
+
 export function TeacherDashboard() {
   const [games, setGames] = useState<GameInstance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newGameName, setNewGameName] = useState("");
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
-
-  const ownerId = "teacher-123"; // Mock ID for development
 
   useEffect(() => {
     fetchGames();
@@ -37,83 +38,65 @@ export function TeacherDashboard() {
     }
   }
 
-  async function createGame(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newGameName.trim()) return;
+  async function createGame() {
+    const nextGameNumber = games.length + 1;
+    setCreating(true);
+    setError("");
 
     try {
       const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newGameName, ownerId })
+        body: JSON.stringify({ name: `Game ${nextGameNumber}`, ownerId }),
       });
       if (!res.ok) throw new Error("Failed to create game");
-      
-      setNewGameName("");
-      fetchGames(); // Refresh the list
+
+      await fetchGames();
     } catch (err) {
       setError("Failed to create game");
       console.error(err);
+    } finally {
+      setCreating(false);
     }
   }
 
-  if (loading) return <div className="p-8">Loading games...</div>;
+  if (loading) {
+    return <div className="min-h-screen bg-white p-12 text-4xl text-black">Loading games...</div>;
+  }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Teacher Dashboard</h1>
-      
+    <main className="min-h-screen bg-white px-10 py-12 text-black sm:px-20">
+      <button
+        type="button"
+        onClick={createGame}
+        disabled={creating}
+        className="mb-16 rounded-2xl border border-black bg-white px-12 py-8 text-6xl font-normal transition hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {creating ? "Creating" : "New game"}
+      </button>
+
       {error && (
-        <div className="bg-red-100 text-red-700 p-4 rounded mb-6">
+        <p className="mb-8 text-2xl text-red-600" role="alert">
           {error}
-        </div>
+        </p>
       )}
 
-      <div className="bg-white shadow rounded-lg p-6 mb-8 border border-gray-200">
-        <h2 className="text-xl font-semibold mb-4">Create New Game</h2>
-        <form onSubmit={createGame} className="flex gap-4">
-          <input
-            type="text"
-            value={newGameName}
-            onChange={(e) => setNewGameName(e.target.value)}
-            placeholder="e.g. Class 101 Spring 2026"
-            className="flex-1 border rounded px-4 py-2"
-            maxLength={50}
-          />
-          <button 
-            type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium transition-colors"
-          >
-            Create Game
-          </button>
-        </form>
-      </div>
-
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Your Games</h2>
+      <section className="grid gap-10">
         {games.length === 0 ? (
-          <p className="text-gray-500">No games created yet.</p>
+          <p className="text-4xl text-gray-500">No games created yet.</p>
         ) : (
-          <div className="grid gap-4">
-            {games.map(game => (
-              <div key={game.id} className="bg-white shadow rounded-lg p-6 border border-gray-200 flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-bold">{game.name}</h3>
-                  <div className="text-sm text-gray-500 mt-1">
-                    Status: <span className="font-medium text-gray-700">{game.status}</span> • 
-                    Round: <span className="font-medium text-gray-700">{game.currentRound} / 6</span> • 
-                    Teams: <span className="font-medium text-gray-700">{game._count.teams} / 4</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-500 mb-1">Join Code</div>
-                  <div className="text-2xl font-mono font-bold tracking-widest text-blue-600">{game.joinCode}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          games.map((game) => (
+            <Link
+              key={game.id}
+              to={`/teacher/games/${game.id}`}
+              className="grid min-h-36 grid-cols-1 items-center rounded-2xl border border-black px-14 py-7 text-black no-underline transition hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-blue-100 md:grid-cols-[1fr_auto] md:gap-12"
+            >
+              <span className="text-6xl font-normal">{game.name}</span>
+              <span className="font-mono text-6xl font-normal tracking-wide">{game.joinCode}</span>
+            </Link>
+          ))
         )}
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

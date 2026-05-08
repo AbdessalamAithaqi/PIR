@@ -23,6 +23,9 @@ model User {
   // A teacher can own many game instances
   ownedGames GameInstance[]
 
+  // A student can join many games before or without team assignment
+  gameParticipations GameParticipant[]
+
   // A student can be a member of many teams (across different games)
   teamMemberships TeamMember[]
 }
@@ -45,6 +48,24 @@ model GameInstance {
 
   // The 4 teams within this game
   teams Team[]
+
+  // Students who entered this game through the join code
+  participants GameParticipant[]
+}
+
+// ─── GameParticipant ─────────────────────────────────────────────────────────
+// Records students who joined a GameInstance, including those not yet assigned.
+model GameParticipant {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  gameId String
+  game   GameInstance @relation(fields: [gameId], references: [id])
+
+  @@unique([userId, gameId])
 }
 
 // ─── Team ────────────────────────────────────────────────────────────────────

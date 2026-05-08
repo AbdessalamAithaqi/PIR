@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { TeacherDashboard } from "./pages/TeacherDashboard";
+import { TeacherGamePage } from "./pages/TeacherGamePage";
+import { StudentJoinPage } from "./pages/StudentJoinPage";
 
 function Home() {
   return (
@@ -23,23 +25,14 @@ function Home() {
   );
 }
 
-function StudentPlaceholder() {
-  return (
-    <div className="p-8 max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Student View</h1>
-      <p className="mb-4">This view is not yet implemented.</p>
-      <Link to="/" className="text-blue-600 hover:underline">← Back to Home</Link>
-    </div>
-  );
-}
-
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
-        <Route path="/student" element={<StudentPlaceholder />} />
+        <Route path="/teacher/games/:gameId" element={<TeacherGamePage />} />
+        <Route path="/student" element={<StudentJoinPage />} />
       </Routes>
     </BrowserRouter>
   );
