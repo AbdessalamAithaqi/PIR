@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+// Represents both Teachers and Students.
+// Teachers own GameInstances. Students join teams within a game.
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  role      String   // "TEACHER" or "STUDENT"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // A teacher can own many game instances
+  ownedGames GameInstance[]
+
+  // A student can be a member of many teams (across different games)
+  teamMemberships TeamMember[]
+}
+
+// ─── GameInstance ─────────────────────────────────────────────────────────────
+// Represents a single rugby tournament / game session.
+// Created by a Teacher, identified by a unique join code.
+model GameInstance {
+  id           String   @id @default(uuid())
+  name         String
+  joinCode     String   @unique
+  status       String   @default("CREATED") // CREATED | ACTIVE | PAUSED | FINISHED
+  currentRound Int      @default(0)         // 0 = not started, 1-6 = active rounds
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // The teacher who owns/created this game
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  // The 4 teams within this game
+  teams Team[]
+}
+
+// ─── Team ────────────────────────────────────────────────────────────────────
+// One of the 4 teams within a GameInstance.
+// Has a budget and fan count that evolve over rounds.
+model Team {
+  id        String   @id @default(uuid())
+  name      String
+  budget    Float    @default(50000) // START_TEAM_MONEY from formulas
+  fans      Int      @default(1000)  // START_FAN_NUMBER from formulas
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The game this team belongs to
+  gameId String
+  game   GameInstance @relation(fields: [gameId], references: [id])
+
+  // Students assigned to this team
+  members TeamMember[]
+}
+
+// ─── TeamMember ──────────────────────────────────────────────────────────────
+// Junction table: assigns a Student to a Team within a specific game.
+model TeamMember {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  // A student can only be on one team per game
+  @@unique([userId, teamId])
+}
