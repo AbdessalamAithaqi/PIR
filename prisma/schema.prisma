@@ -52,8 +52,23 @@ model GameInstance {
   // Students who entered this game through the join code
   participants GameParticipant[]
 
+  parameters GameParameter?
+
   players Player[]
   matchResults MatchResult[]
+}
+
+model GameParameter {
+  id              String   @id @default(uuid())
+  injuryChance    Int      @default(12)
+  fanGain         Int      @default(20)
+  financialGrowth Int      @default(8)
+  luckFactor      Int      @default(50)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  gameId String @unique
+  game   GameInstance @relation(fields: [gameId], references: [id])
 }
 
 // ─── GameParticipant ─────────────────────────────────────────────────────────

@@ -49,6 +49,7 @@ type GameDetails = {
   teams: Team[];
   participants: Participant[];
   results: MatchResult[];
+  parameters: Record<ParameterKey, number>;
 };
 
 type MatchResult = {
@@ -77,10 +78,10 @@ const tabs: { id: TeacherTab; label: string }[] = [
 ];
 
 const parameterLabels: Record<ParameterKey, string> = {
-  injuryChance: "Chance %",
-  fanGain: "Gain",
-  financialGrowth: "Growth",
-  luckFactor: "Luck",
+  injuryChance: "Injury chance",
+  fanGain: "Fan gain",
+  financialGrowth: "Financial growth",
+  luckFactor: "Luck factor",
 };
 
 const defaultParameters: Record<ParameterKey, number> = {
@@ -157,6 +158,7 @@ export function TeacherGamePage() {
       if (!response.ok) throw new Error("Failed to load game");
       const data = await response.json();
       setDetails(data);
+      if (data.parameters) setParameters(data.parameters);
       setError("");
     } catch (err) {
       setError("Failed to load game");
@@ -222,6 +224,28 @@ export function TeacherGamePage() {
       await fetchGame();
     } catch (err) {
       setError("Failed to update round");
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveParameters(nextParameters: Record<ParameterKey, number>) {
+    if (!gameId) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/games/${gameId}/parameters`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(nextParameters),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "Failed to save parameters");
+      if (data?.parameters) setParameters(data.parameters);
+      await fetchGame();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save parameters");
       console.error(err);
     } finally {
       setSaving(false);
@@ -316,7 +340,12 @@ export function TeacherGamePage() {
           />
         )}
         {activeTab === "parameters" && (
-          <ParametersTab parameters={parameters} onChange={setParameters} />
+          <ParametersTab
+            parameters={parameters}
+            saving={saving}
+            onChange={setParameters}
+            onSave={saveParameters}
+          />
         )}
         {activeTab === "round" && (
           <RoundManagementTab
@@ -457,16 +486,25 @@ function StudentPill({
 
 function ParametersTab({
   parameters,
+  saving,
   onChange,
+  onSave,
 }: {
   parameters: Record<ParameterKey, number>;
+  saving: boolean;
   onChange: (parameters: Record<ParameterKey, number>) => void;
+  onSave: (parameters: Record<ParameterKey, number>) => void;
 }) {
   return (
     <Card className="max-w-3xl p-5">
-      <div className="mb-5">
-        <h2 className="font-semibold">Game parameters</h2>
-        <p className="text-sm text-slate-500">Tune global simulation variables.</p>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="font-semibold">Game parameters</h2>
+          <p className="text-sm text-slate-500">Tune global simulation variables.</p>
+        </div>
+        <Button type="button" disabled={saving} onClick={() => onSave(parameters)}>
+          {saving ? "Saving..." : "Save"}
+        </Button>
       </div>
       <div className="grid gap-5">
       {(Object.keys(parameters) as ParameterKey[]).map((key) => (
