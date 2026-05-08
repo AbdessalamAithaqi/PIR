@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type GameSummary = {
   id: string;
@@ -260,13 +260,13 @@ export function StudentJoinPage() {
     }
   }, []);
 
-  async function loadGameDetails(gameId: string) {
+  const loadGameDetails = useCallback(async (gameId: string) => {
     const response = await fetch(`/api/games/${gameId}`);
     if (!response.ok) return null;
     const data = await response.json();
     setGameDetails(data);
     return data as GameDetails;
-  }
+  }, []);
 
   async function joinGame(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -348,7 +348,7 @@ export function StudentJoinPage() {
       active = false;
       window.clearInterval(intervalId);
     };
-  }, [game, screen, studentId]);
+  }, [game, loadGameDetails, screen, studentId]);
 
   function swapPlayer(benchPlayer: Player) {
     if (!selectedLineupId) return;
@@ -366,7 +366,7 @@ export function StudentJoinPage() {
     setReady(false);
   }
 
-  async function refreshDashboard() {
+  const refreshDashboard = useCallback(async () => {
     if (!game || !team) return;
     const details = await loadGameDetails(game.id);
     const updatedTeam = details?.teams.find((candidate) => candidate.id === team.id);
@@ -374,10 +374,28 @@ export function StudentJoinPage() {
       setTeam(updatedTeam);
       setReady(Boolean(updatedTeam.ready));
     }
+  }, [game, loadGameDetails, team]);
+
+  useEffect(() => {
+    if (screen !== "dashboard" || !game) return;
+
+    const intervalId = window.setInterval(() => {
+      refreshDashboard();
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [game, refreshDashboard, screen]);
+
+  function isDecisionPhaseOpen() {
+    return gameDetails?.game.status === "ACTIVE";
   }
 
   async function submitBid(playerId: string, amount: number) {
     if (!game || !team) return;
+    if (!isDecisionPhaseOpen()) {
+      setError("Round is not open.");
+      return;
+    }
     setError("");
     const response = await fetch(`/api/games/${game.id}/teams/${team.id}/bids`, {
       method: "POST",
@@ -395,6 +413,10 @@ export function StudentJoinPage() {
 
   async function submitMarketing(spend: Record<string, number>) {
     if (!game || !team) return false;
+    if (!isDecisionPhaseOpen()) {
+      setError("Round is not open.");
+      return false;
+    }
     const pubInvestment = ["campus", "social"].filter((id) => (spend[id] ?? 0) > 0).length;
     const merchInvestment = ["merch", "sponsor", "family"].filter((id) => (spend[id] ?? 0) > 0).length;
     const response = await fetch(`/api/games/${game.id}/teams/${team.id}/marketing`, {
@@ -413,6 +435,10 @@ export function StudentJoinPage() {
 
   async function markReady() {
     if (!game || !team) return;
+    if (!isDecisionPhaseOpen()) {
+      setError("Round is not open.");
+      return;
+    }
     setError("");
     const starterPlayerIds = lineup.map((player) => player.id);
     const lineupResponse = await fetch(`/api/games/${game.id}/teams/${team.id}/lineup`, {
@@ -474,9 +500,12 @@ export function StudentJoinPage() {
   }
 
   if (screen === "dashboard" && game && team) {
+    const currentGame = gameDetails?.game ?? game;
+    const decisionOpen = currentGame.status === "ACTIVE";
+
     return (
       <StudentDashboard
-        game={game}
+        game={currentGame}
         team={team}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -498,6 +527,7 @@ export function StudentJoinPage() {
         onMarketing={submitMarketing}
         onReady={markReady}
         error={error}
+        decisionOpen={decisionOpen}
       />
     );
   }
@@ -575,6 +605,7 @@ function StudentDashboard({
   onMarketing,
   onReady,
   error,
+  decisionOpen,
 }: {
   game: GameSummary;
   team: TeamAssignment;
@@ -606,14 +637,18 @@ function StudentDashboard({
   onMarketing: (spend: Record<string, number>) => void;
   onReady: () => void;
   error: string;
+  decisionOpen: boolean;
 }) {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div>
-            <p className="text-sm text-slate-500">{game.name}</p>
-            <h1 className="text-3xl font-semibold tracking-tight">{team.name}</h1>
+          <p className="text-sm text-slate-500">{game.name}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-semibold tracking-tight">{team.name}</h1>
+              <Badge>{decisionOpen ? "Decision open" : "Locked"}</Badge>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:w-auto">
             <Metric label="Fans" value={team.fans.toLocaleString()} />
@@ -655,6 +690,7 @@ function StudentDashboard({
             swapPlayer={swapPlayer}
             ready={ready}
             onReady={onReady}
+            decisionOpen={decisionOpen}
           />
         )}
         {activeTab === "market" && (
@@ -666,6 +702,7 @@ function StudentDashboard({
             setBids={setBids}
             totalReserved={totalReserved}
             onBid={onBid}
+            decisionOpen={decisionOpen}
           />
         )}
         {activeTab === "marketing" && (
@@ -675,6 +712,7 @@ function StudentDashboard({
             setMarketingSpend={setMarketingSpend}
             totalMarketing={totalMarketing}
             onMarketing={onMarketing}
+            decisionOpen={decisionOpen}
           />
         )}
         {activeTab === "leaderboard" && <LeaderboardTab game={game} standings={standings} />}
@@ -703,6 +741,7 @@ function TeamTab({
   swapPlayer,
   ready,
   onReady,
+  decisionOpen,
 }: {
   lineup: Player[];
   bench: Player[];
@@ -711,15 +750,23 @@ function TeamTab({
   swapPlayer: (player: Player) => void;
   ready: boolean;
   onReady: () => void;
+  decisionOpen: boolean;
 }) {
   return (
     <div className="grid gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Squad</h2>
-          <p className="text-sm text-slate-500">Select a starter, then choose a bench player.</p>
+          <p className="text-sm text-slate-500">
+            {decisionOpen ? "Select a starter, then choose a bench player." : "The professor has locked decisions."}
+          </p>
         </div>
-        <Button type="button" onClick={onReady} variant={ready ? "secondary" : "primary"}>
+        <Button
+          type="button"
+          onClick={onReady}
+          disabled={!decisionOpen}
+          variant={ready ? "secondary" : "primary"}
+        >
           {ready ? "Ready submitted" : "Mark ready"}
         </Button>
       </div>
@@ -736,6 +783,7 @@ function TeamTab({
               <button
                 key={`${player.id}-${index}`}
                 type="button"
+                disabled={!decisionOpen}
                 onClick={() => setSelectedLineupId(player.id)}
                 className={cn(
                   "absolute w-28 -translate-x-1/2 rounded-md border bg-white/95 px-2 py-2 text-left text-xs shadow-sm transition hover:bg-white",
@@ -765,7 +813,7 @@ function TeamTab({
                 key={player.id}
                 type="button"
                 onClick={() => swapPlayer(player)}
-                disabled={!selectedLineupId}
+                disabled={!decisionOpen || !selectedLineupId}
                 className="rounded-md border border-slate-200 bg-white p-3 text-left transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -792,6 +840,7 @@ function MarketTab({
   setBids,
   totalReserved,
   onBid,
+  decisionOpen,
 }: {
   team: TeamAssignment;
   market: MarketPlayer[];
@@ -800,15 +849,18 @@ function MarketTab({
   setBids: (bids: Record<string, number>) => void;
   totalReserved: number;
   onBid: (playerId: string, amount: number) => void;
+  decisionOpen: boolean;
 }) {
-  const availablePlayers = market.length > 0 ? market.map(toPlayer) : marketPlayers;
+  const availablePlayers = market.length > 0 ? market.map(toPlayer) : decisionOpen ? marketPlayers : [];
 
   return (
     <div className="grid gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Market</h2>
-          <p className="text-sm text-slate-500">Reserve budget by placing bids on available players.</p>
+          <p className="text-sm text-slate-500">
+            {decisionOpen ? "Reserve budget by placing bids on available players." : "Market decisions are locked."}
+          </p>
         </div>
         <Badge>Reserved {formatMoney(totalReserved)}</Badge>
       </div>
@@ -841,6 +893,7 @@ function MarketTab({
                   min={0}
                   max={team.budget}
                   value={bid}
+                  disabled={!decisionOpen}
                   onChange={(event) =>
                     setBids({
                       ...bids,
@@ -850,7 +903,7 @@ function MarketTab({
                   className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                   aria-label={`${player.name} bid`}
                 />
-                <Button type="button" onClick={() => onBid(player.id, bid)}>
+                <Button type="button" disabled={!decisionOpen} onClick={() => onBid(player.id, bid)}>
                   Bid
                 </Button>
               </div>
@@ -871,19 +924,23 @@ function MarketingTab({
   setMarketingSpend,
   totalMarketing,
   onMarketing,
+  decisionOpen,
 }: {
   team: TeamAssignment;
   marketingSpend: Record<string, number>;
   setMarketingSpend: (spend: Record<string, number>) => void;
   totalMarketing: number;
   onMarketing: (spend: Record<string, number>) => void;
+  decisionOpen: boolean;
 }) {
   return (
     <div className="grid gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Marketing</h2>
-          <p className="text-sm text-slate-500">Invest in fan growth and future revenue.</p>
+          <p className="text-sm text-slate-500">
+            {decisionOpen ? "Invest in fan growth and future revenue." : "Marketing decisions are locked."}
+          </p>
         </div>
         <Badge>
           Planned {formatMoney(totalMarketing)} / {formatMoney(team.budget)}
@@ -906,6 +963,7 @@ function MarketingTab({
                 min={0}
                 max={team.budget}
                 value={marketingSpend[option.id] ?? option.cost}
+                disabled={!decisionOpen}
                 onChange={(event) =>
                   setMarketingSpend({
                     ...marketingSpend,
@@ -917,6 +975,7 @@ function MarketingTab({
               />
               <Button
                 type="button"
+                disabled={!decisionOpen}
                 onClick={() => {
                   const nextSpend = {
                     ...marketingSpend,

@@ -75,6 +75,12 @@ const marketNames = [
   "Russell",
   "Keenan",
 ];
+const DEFAULT_PARAMETERS = {
+  injuryChance: 12,
+  fanGain: 20,
+  financialGrowth: 8,
+  luckFactor: 50,
+};
 
 type JoinedStudentRow = {
   id: string;
@@ -146,6 +152,15 @@ type DbMatchResult = {
   moneyDeltaB: number;
   teamAId: string;
   teamBId: string;
+  gameId: string;
+};
+
+type DbGameParameter = {
+  id: string;
+  injuryChance: number;
+  fanGain: number;
+  financialGrowth: number;
+  luckFactor: number;
   gameId: string;
 };
 
@@ -285,6 +300,19 @@ async function ensureGameLoopTables() {
     )
   `);
   await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "GameParameter" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "injuryChance" INTEGER NOT NULL DEFAULT 12,
+      "fanGain" INTEGER NOT NULL DEFAULT 20,
+      "financialGrowth" INTEGER NOT NULL DEFAULT 8,
+      "luckFactor" INTEGER NOT NULL DEFAULT 50,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL,
+      "gameId" TEXT NOT NULL,
+      CONSTRAINT "GameParameter_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "GameInstance" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    )
+  `);
+  await prisma.$executeRawUnsafe(`
     CREATE UNIQUE INDEX IF NOT EXISTS "TeamPlayer_teamId_playerId_key"
     ON "TeamPlayer"("teamId", "playerId")
   `);
@@ -296,6 +324,10 @@ async function ensureGameLoopTables() {
     CREATE UNIQUE INDEX IF NOT EXISTS "MarketingDecision_teamId_roundNumber_key"
     ON "MarketingDecision"("teamId", "roundNumber")
   `);
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "GameParameter_gameId_key"
+    ON "GameParameter"("gameId")
+  `);
 }
 
 function playerPrice(stats: number, roundNumber: number) {
@@ -306,6 +338,56 @@ function clampInvestment(value: unknown) {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return 0;
   return Math.max(0, Math.min(2, Math.floor(amount)));
+}
+
+function clampParameter(value: unknown, fallback: number) {
+  const amount = Number(value ?? fallback);
+  if (!Number.isFinite(amount)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(amount)));
+}
+
+function normalizeParameters(parameters: Partial<DbGameParameter>): DbGameParameter {
+  return {
+    id: parameters.id ?? "",
+    gameId: parameters.gameId ?? "",
+    injuryChance: clampParameter(parameters.injuryChance, DEFAULT_PARAMETERS.injuryChance),
+    fanGain: clampParameter(parameters.fanGain, DEFAULT_PARAMETERS.fanGain),
+    financialGrowth: clampParameter(parameters.financialGrowth, DEFAULT_PARAMETERS.financialGrowth),
+    luckFactor: clampParameter(parameters.luckFactor, DEFAULT_PARAMETERS.luckFactor),
+  };
+}
+
+async function getGameParameters(gameId: string) {
+  await ensureGameLoopTables();
+  const existing = await prisma.$queryRawUnsafe<DbGameParameter[]>(
+    `
+      SELECT id, injuryChance, fanGain, financialGrowth, luckFactor, gameId
+      FROM GameParameter
+      WHERE gameId = ?
+      LIMIT 1
+    `,
+    gameId,
+  );
+
+  if (existing[0]) return normalizeParameters(existing[0]);
+
+  const id = randomUUID();
+  await prisma.$executeRawUnsafe(
+    `
+      INSERT INTO GameParameter (
+        id, injuryChance, fanGain, financialGrowth, luckFactor, createdAt, updatedAt, gameId
+      )
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)
+    `,
+    id,
+    DEFAULT_PARAMETERS.injuryChance,
+    DEFAULT_PARAMETERS.fanGain,
+    DEFAULT_PARAMETERS.financialGrowth,
+    DEFAULT_PARAMETERS.luckFactor,
+    gameId,
+  );
+
+  return { id, gameId, ...DEFAULT_PARAMETERS };
 }
 
 function normalizeTeam(team: DbTeam): DbTeam & { ready: boolean } {
@@ -551,15 +633,22 @@ function deterministicLuck(teamId: string, roundNumber: number) {
   return (Math.sin(seed) + 1) / 2;
 }
 
-async function calculateTeamScore(team: DbTeam & { ready: boolean }, roundNumber: number) {
+async function calculateTeamScore(
+  team: DbTeam & { ready: boolean },
+  roundNumber: number,
+  parameters: DbGameParameter,
+) {
   const avgPlayersStats = await averageStarterStats(team.id);
   const luck = deterministicLuck(team.id, roundNumber);
+  const injuryPenalty = luck * 100 < parameters.injuryChance ? 5 : 0;
+  const adjustedPlayerStats = Math.max(0, avgPlayersStats - injuryPenalty);
+  const luckWeight = 0.2 * (parameters.luckFactor / DEFAULT_PARAMETERS.luckFactor);
 
   return (
-    (avgPlayersStats / 100) * 0.4 +
+    (adjustedPlayerStats / 100) * 0.4 +
     (team.fans / MAX_FAN_NUMBER) * 0.2 +
     ((team.pubScore + team.merchScore) / 20) * 0.2 +
-    luck * 0.2
+    luck * luckWeight
   );
 }
 
@@ -682,11 +771,16 @@ async function updateTeamAfterMatch(
   outcome: string,
   scoreFor: number,
   scoreAgainst: number,
+  parameters: DbGameParameter,
 ) {
-  const fanGain = Math.round(team.fans * (0.05 + (team.pubScore + team.merchScore) / 50));
+  const fanGainMultiplier = parameters.fanGain / DEFAULT_PARAMETERS.fanGain;
+  const financialGrowthMultiplier = parameters.financialGrowth / DEFAULT_PARAMETERS.financialGrowth;
+  const fanGain = Math.round(
+    team.fans * (0.05 + (team.pubScore + team.merchScore) / 50) * fanGainMultiplier,
+  );
   const fanDelta = fanGain + fanBonus(outcome);
   const nextFans = Math.max(0, Math.min(MAX_FAN_NUMBER, team.fans + fanDelta));
-  const revenue = Math.round(roundNumber * 5000 * (nextFans / 5000));
+  const revenue = Math.round(roundNumber * 5000 * (nextFans / 5000) * financialGrowthMultiplier);
   const matchBonus = outcome === "win" ? roundNumber * 10000 : 0;
   const moneyDelta = revenue + matchBonus;
   const scoreDiff = scoreFor - scoreAgainst;
@@ -731,16 +825,17 @@ async function simulateRound(gameId: string, roundNumber: number) {
 
   const teams = await getTeams(gameId);
   const pairs = roundRobinPairs(teams, roundNumber);
+  const parameters = await getGameParameters(gameId);
 
   for (const [teamA, teamB] of pairs) {
-    const rawScoreA = await calculateTeamScore(teamA, roundNumber);
-    const rawScoreB = await calculateTeamScore(teamB, roundNumber);
+    const rawScoreA = await calculateTeamScore(teamA, roundNumber, parameters);
+    const rawScoreB = await calculateTeamScore(teamB, roundNumber, parameters);
     const scoreA = Math.round(rawScoreA * 100);
     const scoreB = Math.round(rawScoreB * 100);
     const resultA = outcomeLabel(scoreA, scoreB);
     const resultB = outcomeLabel(scoreB, scoreA);
-    const deltaA = await updateTeamAfterMatch(teamA, roundNumber, resultA, scoreA, scoreB);
-    const deltaB = await updateTeamAfterMatch(teamB, roundNumber, resultB, scoreB, scoreA);
+    const deltaA = await updateTeamAfterMatch(teamA, roundNumber, resultA, scoreA, scoreB, parameters);
+    const deltaB = await updateTeamAfterMatch(teamB, roundNumber, resultB, scoreB, scoreA, parameters);
 
     await prisma.$executeRawUnsafe(
       `
@@ -929,16 +1024,17 @@ router.get("/:gameId", async (req, res) => {
 
     await ensureDefaultTeams(gameId);
     await ensureTeamRosters(gameId);
-    const [teams, participants, market, bids, marketingDecisions, results] = await Promise.all([
+    const [teams, participants, market, bids, marketingDecisions, results, parameters] = await Promise.all([
       getEnrichedTeams(gameId),
       getJoinedStudents(gameId),
       getMarket(gameId, game.currentRound),
       getRoundBids(gameId, game.currentRound),
       getMarketingDecisions(gameId, game.currentRound),
       getMatchResults(gameId),
+      getGameParameters(gameId),
     ]);
 
-    res.json({ game, teams, participants, market, bids, marketingDecisions, results });
+    res.json({ game, teams, participants, market, bids, marketingDecisions, results, parameters });
   } catch (error) {
     console.error("Failed to fetch game:", error);
     res.status(500).json({ error: "Failed to fetch game" });
@@ -978,6 +1074,54 @@ router.get("/:gameId/assignment", async (req, res) => {
   } catch (error) {
     console.error("Failed to fetch team assignment:", error);
     res.status(500).json({ error: "Failed to fetch team assignment" });
+  }
+});
+
+// PUT /api/games/:gameId/parameters
+// Persists teacher-controlled simulation knobs for this game.
+router.put("/:gameId/parameters", async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const game = await prisma.gameInstance.findUnique({ where: { id: gameId } });
+
+    if (!game) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    const parameters = normalizeParameters({
+      injuryChance: req.body.injuryChance,
+      fanGain: req.body.fanGain,
+      financialGrowth: req.body.financialGrowth,
+      luckFactor: req.body.luckFactor,
+      gameId,
+    });
+
+    await ensureGameLoopTables();
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO GameParameter (
+          id, injuryChance, fanGain, financialGrowth, luckFactor, createdAt, updatedAt, gameId
+        )
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)
+        ON CONFLICT(gameId) DO UPDATE SET
+          injuryChance = excluded.injuryChance,
+          fanGain = excluded.fanGain,
+          financialGrowth = excluded.financialGrowth,
+          luckFactor = excluded.luckFactor,
+          updatedAt = CURRENT_TIMESTAMP
+      `,
+      randomUUID(),
+      parameters.injuryChance,
+      parameters.fanGain,
+      parameters.financialGrowth,
+      parameters.luckFactor,
+      gameId,
+    );
+
+    res.json({ parameters: await getGameParameters(gameId) });
+  } catch (error) {
+    console.error("Failed to save parameters:", error);
+    res.status(500).json({ error: "Failed to save parameters" });
   }
 });
 
@@ -1048,6 +1192,10 @@ router.post("/:gameId/teams/:teamId/lineup", async (req, res) => {
     const starterPlayerIds = Array.isArray(req.body.starterPlayerIds)
       ? req.body.starterPlayerIds.map((id: unknown) => String(id))
       : [];
+    const game = await prisma.gameInstance.findUnique({ where: { id: gameId } });
+
+    if (!game) return res.status(404).json({ error: "Game not found" });
+    if (game.status !== "ACTIVE") return res.status(409).json({ error: "Round is not open" });
 
     if (starterPlayerIds.length === 0 || starterPlayerIds.length > 15) {
       return res.status(400).json({ error: "Choose between 1 and 15 starters" });
@@ -1193,6 +1341,11 @@ router.post("/:gameId/teams/:teamId/marketing", async (req, res) => {
 router.post("/:gameId/teams/:teamId/ready", async (req, res) => {
   try {
     const { gameId, teamId } = req.params;
+    const game = await prisma.gameInstance.findUnique({ where: { id: gameId } });
+
+    if (!game) return res.status(404).json({ error: "Game not found" });
+    if (game.status !== "ACTIVE") return res.status(409).json({ error: "Round is not open" });
+
     const teams = await getTeams(gameId);
     if (!teams.some((team) => team.id === teamId)) {
       return res.status(404).json({ error: "Team not found for this game" });
@@ -1324,6 +1477,7 @@ router.post("/", async (req, res) => {
       }
     });
     await ensureTeamRosters(newGame.id);
+    await getGameParameters(newGame.id);
     
     res.status(201).json({ game: newGame });
   } catch (error) {
