@@ -3,6 +3,10 @@ import { Link, useParams } from "react-router-dom";
 
 type TeacherTab = "teams" | "parameters" | "round" | "report" | "leaderboard";
 
+const parameterKeys = ["injuryChance", "fanGain", "financialGrowth", "luckFactor"] as const;
+type ParameterKey = (typeof parameterKeys)[number];
+type GameParameters = Record<ParameterKey, number>;
+
 type GameSummary = {
   id: string;
   name: string;
@@ -49,7 +53,7 @@ type GameDetails = {
   teams: Team[];
   participants: Participant[];
   results: MatchResult[];
-  parameters: Record<ParameterKey, number>;
+  parameters: Record<string, unknown>;
 };
 
 type MatchResult = {
@@ -67,8 +71,6 @@ type MatchResult = {
   teamBId: string;
 };
 
-type ParameterKey = "injuryChance" | "fanGain" | "financialGrowth" | "luckFactor";
-
 const tabs: { id: TeacherTab; label: string }[] = [
   { id: "teams", label: "Teams" },
   { id: "parameters", label: "Parameters" },
@@ -84,12 +86,27 @@ const parameterLabels: Record<ParameterKey, string> = {
   luckFactor: "Luck factor",
 };
 
-const defaultParameters: Record<ParameterKey, number> = {
+const defaultParameters: GameParameters = {
   injuryChance: 12,
   fanGain: 20,
   financialGrowth: 8,
   luckFactor: 50,
 };
+
+function sanitizeParameters(parameters: unknown): GameParameters {
+  const source =
+    parameters && typeof parameters === "object"
+      ? (parameters as Partial<Record<ParameterKey, unknown>>)
+      : {};
+  const nextParameters = { ...defaultParameters };
+
+  parameterKeys.forEach((key) => {
+    const value = Number(source[key]);
+    nextParameters[key] = Number.isFinite(value) ? value : defaultParameters[key];
+  });
+
+  return nextParameters;
+}
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -145,7 +162,7 @@ export function TeacherGamePage() {
   const { gameId } = useParams();
   const [activeTab, setActiveTab] = useState<TeacherTab>("teams");
   const [details, setDetails] = useState<GameDetails | null>(null);
-  const [parameters, setParameters] = useState(defaultParameters);
+  const [parameters, setParameters] = useState<GameParameters>(defaultParameters);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -158,7 +175,7 @@ export function TeacherGamePage() {
       if (!response.ok) throw new Error("Failed to load game");
       const data = await response.json();
       setDetails(data);
-      if (data.parameters) setParameters(data.parameters);
+      if (data.parameters) setParameters(sanitizeParameters(data.parameters));
       setError("");
     } catch (err) {
       setError("Failed to load game");
@@ -230,19 +247,20 @@ export function TeacherGamePage() {
     }
   }
 
-  async function saveParameters(nextParameters: Record<ParameterKey, number>) {
+  async function saveParameters(nextParameters: GameParameters) {
     if (!gameId) return;
 
+    const safeParameters = sanitizeParameters(nextParameters);
     setSaving(true);
     try {
       const response = await fetch(`/api/games/${gameId}/parameters`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(nextParameters),
+        body: JSON.stringify(safeParameters),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error || "Failed to save parameters");
-      if (data?.parameters) setParameters(data.parameters);
+      if (data?.parameters) setParameters(sanitizeParameters(data.parameters));
       await fetchGame();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save parameters");
@@ -492,10 +510,10 @@ function ParametersTab({
   onChange,
   onSave,
 }: {
-  parameters: Record<ParameterKey, number>;
+  parameters: GameParameters;
   saving: boolean;
-  onChange: (parameters: Record<ParameterKey, number>) => void;
-  onSave: (parameters: Record<ParameterKey, number>) => void;
+  onChange: (parameters: GameParameters) => void;
+  onSave: (parameters: GameParameters) => void;
 }) {
   return (
     <Card className="max-w-3xl p-5">
@@ -509,39 +527,39 @@ function ParametersTab({
         </Button>
       </div>
       <div className="grid gap-5">
-      {(Object.keys(parameters) as ParameterKey[]).map((key) => (
-        <label key={key} className="grid gap-2">
-          <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-medium">{parameterLabels[key]}</span>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={parameters[key]}
-            onChange={(event) =>
-              onChange({
-                ...parameters,
-                [key]: Number(event.target.value),
-              })
-            }
-            className="h-9 w-20 rounded-md border border-slate-200 px-2 text-center text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-          />
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={parameters[key]}
-            onChange={(event) =>
-              onChange({
-                ...parameters,
-                [key]: Number(event.target.value),
-              })
-            }
-            className="w-full accent-slate-950"
-          />
-        </label>
-      ))}
+        {parameterKeys.map((key) => (
+          <label key={key} className="grid gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">{parameterLabels[key]}</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={parameters[key]}
+                onChange={(event) =>
+                  onChange({
+                    ...parameters,
+                    [key]: Number(event.target.value),
+                  })
+                }
+                className="h-9 w-20 rounded-md border border-slate-200 px-2 text-center text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              />
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={parameters[key]}
+              onChange={(event) =>
+                onChange({
+                  ...parameters,
+                  [key]: Number(event.target.value),
+                })
+              }
+              className="w-full accent-slate-950"
+            />
+          </label>
+        ))}
       </div>
     </Card>
   );
@@ -650,70 +668,70 @@ function LeaderboardTab({ teams, results }: { teams: Team[]; results: MatchResul
         <h2 className="font-semibold">Leaderboard</h2>
       </div>
       <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-          <tr>
-            <th className="px-4 py-3">Team</th>
-            <th className="px-4 py-3">W</th>
-            <th className="px-4 py-3">D</th>
-            <th className="px-4 py-3">L</th>
-            <th className="px-4 py-3">PD</th>
-            <th className="px-4 py-3">PTS</th>
-            <th className="px-4 py-3">Fans</th>
-            <th className="px-4 py-3">Budget</th>
-            <th className="px-4 py-3">Form</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-200">
-          {standings.map((team) => {
-            const teamResults = results
-              .filter((r) => r.teamAId === team.id || r.teamBId === team.id)
-              .sort((a, b) => b.roundNumber - a.roundNumber)
-              .slice(0, 5);
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Team</th>
+              <th className="px-4 py-3">W</th>
+              <th className="px-4 py-3">D</th>
+              <th className="px-4 py-3">L</th>
+              <th className="px-4 py-3">PD</th>
+              <th className="px-4 py-3">PTS</th>
+              <th className="px-4 py-3">Fans</th>
+              <th className="px-4 py-3">Budget</th>
+              <th className="px-4 py-3">Form</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {standings.map((team) => {
+              const teamResults = results
+                .filter((r) => r.teamAId === team.id || r.teamBId === team.id)
+                .sort((a, b) => b.roundNumber - a.roundNumber)
+                .slice(0, 5);
 
-            return (
-              <tr key={team.id}>
-                <td className="px-4 py-3 font-medium">{team.name}</td>
-                <td className="px-4 py-3">{team.wins ?? 0}</td>
-                <td className="px-4 py-3">{team.draws ?? 0}</td>
-                <td className="px-4 py-3">{team.losses ?? 0}</td>
-                <td className="px-4 py-3">{team.pointDiff ?? 0}</td>
-                <td className="px-4 py-3 font-semibold">{team.points ?? 0}</td>
-                <td className="px-4 py-3">{team.fans.toLocaleString()}</td>
-                <td className="px-4 py-3">
-                  {team.budget.toLocaleString(undefined, {
-                    style: "currency",
-                    currency: "EUR",
-                    maximumFractionDigits: 0,
-                  })}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1.5">
-                    {teamResults.reverse().map((r) => {
-                      const outcome = r.teamAId === team.id ? r.resultA : r.resultB;
-                      let colorClass = "bg-slate-300";
-                      if (outcome === "win") colorClass = "bg-green-500";
-                      if (outcome === "loss") colorClass = "bg-red-500";
-                      if (outcome === "draw") colorClass = "bg-amber-500";
-                      
-                      return (
-                        <span 
-                          key={r.id} 
-                          className={`h-2.5 w-2.5 rounded-full ${colorClass}`}
-                          title={outcome.charAt(0).toUpperCase() + outcome.slice(1)} 
-                        />
-                      );
+              return (
+                <tr key={team.id}>
+                  <td className="px-4 py-3 font-medium">{team.name}</td>
+                  <td className="px-4 py-3">{team.wins ?? 0}</td>
+                  <td className="px-4 py-3">{team.draws ?? 0}</td>
+                  <td className="px-4 py-3">{team.losses ?? 0}</td>
+                  <td className="px-4 py-3">{team.pointDiff ?? 0}</td>
+                  <td className="px-4 py-3 font-semibold">{team.points ?? 0}</td>
+                  <td className="px-4 py-3">{team.fans.toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    {team.budget.toLocaleString(undefined, {
+                      style: "currency",
+                      currency: "EUR",
+                      maximumFractionDigits: 0,
                     })}
-                    {Array.from({ length: Math.max(0, 5 - teamResults.length) }).map((_, i) => (
-                      <span key={`empty-${i}`} className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-1.5">
+                      {teamResults.reverse().map((r) => {
+                        const outcome = r.teamAId === team.id ? r.resultA : r.resultB;
+                        let colorClass = "bg-slate-300";
+                        if (outcome === "win") colorClass = "bg-green-500";
+                        if (outcome === "loss") colorClass = "bg-red-500";
+                        if (outcome === "draw") colorClass = "bg-amber-500";
+
+                        return (
+                          <span
+                            key={r.id}
+                            className={`h-2.5 w-2.5 rounded-full ${colorClass}`}
+                            title={outcome.charAt(0).toUpperCase() + outcome.slice(1)}
+                          />
+                        );
+                      })}
+                      {Array.from({ length: Math.max(0, 5 - teamResults.length) }).map((_, i) => (
+                        <span key={`empty-${i}`} className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </Card>
   );
