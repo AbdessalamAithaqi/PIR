@@ -481,8 +481,7 @@ async function ensureMarketPlayers(gameId: string, roundNumber: number) {
   if (Number(existing[0]?.count ?? 0) >= 15) return;
 
   for (let index = 0; index < marketNames.length; index += 1) {
-    const skillIncrease = roundNumber * ((index % 10) + 1);
-    const stats = INITIAL_PLAYER_STATS + skillIncrease;
+    const stats = INITIAL_PLAYER_STATS + Math.floor(Math.random() * roundNumber * 10);
     await prisma.$executeRawUnsafe(
       `
         INSERT INTO Player (id, name, position, stats, price, roundNumber, market, sold, gameId)
