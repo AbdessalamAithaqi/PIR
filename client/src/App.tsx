@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { TeacherDashboard } from "./pages/TeacherDashboard";
 import { TeacherGamePage } from "./pages/TeacherGamePage";
-import { StudentJoinPage } from "./pages/StudentJoinPage";
+import { StudentJoinPageWithGuards } from "./pages/StudentJoinPageWithGuards";
 
 function Home() {
   return (
@@ -32,7 +32,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
         <Route path="/teacher/games/:gameId" element={<TeacherGamePage />} />
-        <Route path="/student" element={<StudentJoinPage />} />
+        <Route path="/student" element={<StudentJoinPageWithGuards />} />
       </Routes>
     </BrowserRouter>
   );
