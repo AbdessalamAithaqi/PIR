@@ -1485,4 +1485,29 @@ router.post("/", async (req, res) => {
   }
 });
 
+// DELETE /api/games/:gameId
+// Deletes a game instance and all its associated data (cascading)
+router.delete("/:gameId", async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    const game = await prisma.gameInstance.findUnique({
+      where: { id: gameId },
+    });
+
+    if (!game) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    await prisma.gameInstance.delete({
+      where: { id: gameId },
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Failed to delete game:", error);
+    res.status(500).json({ error: "Failed to delete game" });
+  }
+});
+
 export default router;

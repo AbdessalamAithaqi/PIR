@@ -68,7 +68,7 @@ model GameParameter {
   updatedAt       DateTime @updatedAt
 
   gameId String @unique
-  game   GameInstance @relation(fields: [gameId], references: [id])
+  game   GameInstance @relation(fields: [gameId], references: [id], onDelete: Cascade)
 }
 
 // ─── GameParticipant ─────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ model GameParticipant {
   user   User   @relation(fields: [userId], references: [id])
 
   gameId String
-  game   GameInstance @relation(fields: [gameId], references: [id])
+  game   GameInstance @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@unique([userId, gameId])
 }
@@ -107,7 +107,7 @@ model Team {
 
   // The game this team belongs to
   gameId String
-  game   GameInstance @relation(fields: [gameId], references: [id])
+  game   GameInstance @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   // Students assigned to this team
   members TeamMember[]
@@ -127,7 +127,7 @@ model TeamMember {
   user   User   @relation(fields: [userId], references: [id])
 
   teamId String
-  team   Team   @relation(fields: [teamId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   // A student can only be on one team per game
   @@unique([userId, teamId])
@@ -145,7 +145,7 @@ model Player {
   createdAt   DateTime @default(now())
 
   gameId String
-  game   GameInstance @relation(fields: [gameId], references: [id])
+  game   GameInstance @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   teamPlayers TeamPlayer[]
   bids Bid[]
@@ -157,10 +157,10 @@ model TeamPlayer {
   slot    Int     @default(0)
 
   teamId String
-  team   Team   @relation(fields: [teamId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   playerId String
-  player   Player @relation(fields: [playerId], references: [id])
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, playerId])
 }
@@ -172,10 +172,10 @@ model Bid {
   createdAt   DateTime @default(now())
 
   teamId String
-  team   Team   @relation(fields: [teamId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   playerId String
-  player   Player @relation(fields: [playerId], references: [id])
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, playerId, roundNumber])
 }
@@ -189,7 +189,7 @@ model MarketingDecision {
   updatedAt       DateTime @updatedAt
 
   teamId String
-  team   Team   @relation(fields: [teamId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, roundNumber])
 }
@@ -208,7 +208,7 @@ model MatchResult {
   createdAt   DateTime @default(now())
 
   gameId String
-  game   GameInstance @relation(fields: [gameId], references: [id])
+  game   GameInstance @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   teamAId String
   teamBId String
