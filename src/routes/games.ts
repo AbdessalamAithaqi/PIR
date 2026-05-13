@@ -1,6 +1,7 @@
 import express from "express";
 import { randomUUID } from "crypto";
 import prisma from "../lib/prisma.js";
+import { getAuthenticatedUser } from "./auth.js";
 
 const router = express.Router();
 const defaultTeamNames = ["Team 1", "Team 2", "Team 3", "Team 4"];
@@ -919,8 +920,13 @@ async function getJoinedStudents(gameId: string) {
 router.get("/", async (req, res) => {
   try {
     const { ownerId } = req.query;
-    
-    const filter = ownerId ? { ownerId: String(ownerId) } : {};
+    const currentUser = getAuthenticatedUser(req);
+    const resolvedOwnerId = ownerId
+      ? String(ownerId)
+      : currentUser?.role === "TEACHER"
+        ? currentUser.id
+        : undefined;
+    const filter = resolvedOwnerId ? { ownerId: resolvedOwnerId } : {};
     
     const games = await prisma.gameInstance.findMany({
       where: filter,
@@ -944,8 +950,10 @@ router.get("/", async (req, res) => {
 router.post("/join", async (req, res) => {
   try {
     const { joinCode, studentId, studentName } = req.body;
+    const currentUser = getAuthenticatedUser(req);
     const normalizedJoinCode = String(joinCode ?? "").trim().toUpperCase();
-    const normalizedStudentId = String(studentId ?? "").trim();
+    const normalizedStudentId = String(currentUser?.id ?? studentId ?? "").trim();
+    const normalizedStudentName = String(currentUser?.name ?? studentName ?? "Student").trim() || "Student";
 
     if (!normalizedJoinCode || !normalizedStudentId) {
       return res.status(400).json({ error: "Missing join code or student ID" });
@@ -972,12 +980,12 @@ router.post("/join", async (req, res) => {
     await prisma.user.upsert({
       where: { id: normalizedStudentId },
       update: {
-        name: studentName || "Student",
+        name: normalizedStudentName,
         role: "STUDENT",
       },
       create: {
         id: normalizedStudentId,
-        name: studentName || "Student",
+        name: normalizedStudentName,
         role: "STUDENT",
       },
     });
@@ -1045,7 +1053,8 @@ router.get("/:gameId", async (req, res) => {
 router.get("/:gameId/assignment", async (req, res) => {
   try {
     const { gameId } = req.params;
-    const studentId = String(req.query.studentId ?? "").trim();
+    const currentUser = getAuthenticatedUser(req);
+    const studentId = String(currentUser?.id ?? req.query.studentId ?? "").trim();
 
     if (!studentId) {
       return res.status(400).json({ error: "Missing student ID" });
@@ -1439,20 +1448,23 @@ router.post("/:gameId/round", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { name, ownerId } = req.body;
+    const currentUser = getAuthenticatedUser(req);
+    const bodyOwnerId = String(ownerId ?? "").trim();
+    const resolvedOwnerId = currentUser?.role === "TEACHER" ? currentUser.id : bodyOwnerId;
     
-    if (!name || !ownerId) {
+    if (!name || !resolvedOwnerId) {
       return res.status(400).json({ error: "Missing name or ownerId" });
     }
 
     await ensureGameLoopTables();
 
     // Ensure the user exists, or create a mock teacher if not for testing
-    let user = await prisma.user.findUnique({ where: { id: ownerId } });
+    let user = await prisma.user.findUnique({ where: { id: resolvedOwnerId } });
     if (!user) {
        user = await prisma.user.create({
          data: {
-           id: ownerId,
-           name: "Mock Teacher",
+           id: resolvedOwnerId,
+           name: currentUser?.name ?? "Mock Teacher",
            role: "TEACHER"
          }
        });

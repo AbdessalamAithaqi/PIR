@@ -48,6 +48,26 @@ Because the frontend and backend are decoupled, you need to run **two terminal t
    ```
    *(Runs on http://localhost:5173 - this is where you open your browser!)*
 
+## INSA CAS Authentication
+
+The app supports two authentication modes:
+
+- `AUTH_MODE=demo` for local development. `/api/auth/login?role=TEACHER&next=/teacher` creates a demo teacher session, and `/api/auth/login?role=STUDENT&next=/student` creates a demo student session.
+- `AUTH_MODE=cas` for INSA deployment. Users are redirected to INSA CAS, then returned to `/api/auth/cas/callback`.
+
+Recommended server environment for the CSN host:
+
+```bash
+AUTH_MODE=cas
+APP_BASE_URL=https://serious-game.insa-toulouse.fr
+CAS_BASE_URL=https://cas.insa-toulouse.fr/cas
+SESSION_SECRET=<long-random-secret>
+TEACHER_IDS=<comma-separated-insa-logins-that-can-create-games>
+DATABASE_URL=<deployment database url>
+```
+
+CAS identifies the user. The app decides whether they are a teacher by checking `TEACHER_IDS`; everyone else is treated as a student. Students still use the professor's join code after signing in.
+
 ---
 
 ## 🛠️ The 4-Step Feature Workflow

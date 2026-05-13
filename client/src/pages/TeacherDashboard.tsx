@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { authLoginUrl, fetchCurrentUser, logout, type AuthUser } from "../lib/auth";
 
 type GameInstance = {
   id: string;
@@ -11,8 +12,6 @@ type GameInstance = {
     teams: number;
   };
 };
-
-const ownerId = "teacher-123";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -46,17 +45,14 @@ function Badge({ children }: { children: React.ReactNode }) {
 
 export function TeacherDashboard() {
   const [games, setGames] = useState<GameInstance[]>([]);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetchGames();
-  }, []);
-
-  async function fetchGames() {
+  const fetchGames = useCallback(async () => {
     try {
-      const res = await fetch(`/api/games?ownerId=${ownerId}`);
+      const res = await fetch("/api/games", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch games");
       const data = await res.json();
       setGames(data.games);
@@ -66,7 +62,25 @@ export function TeacherDashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  const bootstrap = useCallback(async () => {
+    try {
+      const currentUser = await fetchCurrentUser();
+      setUser(currentUser);
+      if (!currentUser) return;
+      await fetchGames();
+    } catch (err) {
+      setError("Failed to load account");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchGames]);
+
+  useEffect(() => {
+    bootstrap();
+  }, [bootstrap]);
 
   async function createGame() {
     const nextGameNumber = games.length + 1;
@@ -77,7 +91,8 @@ export function TeacherDashboard() {
       const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: `Game ${nextGameNumber}`, ownerId }),
+        credentials: "include",
+        body: JSON.stringify({ name: `Game ${nextGameNumber}` }),
       });
       if (!res.ok) throw new Error("Failed to create game");
 
@@ -101,6 +116,7 @@ export function TeacherDashboard() {
     try {
       const res = await fetch(`/api/games/${gameId}`, {
         method: "DELETE",
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to delete game");
 
@@ -119,6 +135,24 @@ export function TeacherDashboard() {
     );
   }
 
+  if (!user) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-slate-950">
+        <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <Badge>Teacher console</Badge>
+          <h1 className="mt-4 text-2xl font-semibold">Sign in required</h1>
+          <p className="mt-2 text-sm text-slate-500">Use your INSA account to manage games.</p>
+          <a
+            href={authLoginUrl("TEACHER", "/teacher")}
+            className="mt-5 inline-flex h-10 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-medium text-white no-underline transition hover:bg-slate-800"
+          >
+            Sign in with INSA
+          </a>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <section className="mx-auto grid max-w-5xl gap-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -127,12 +161,24 @@ export function TeacherDashboard() {
             <Badge>Teacher console</Badge>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight">Game management</h1>
             <p className="mt-1 text-sm text-slate-500">
-              Create leagues and share join codes with students.
+              Signed in as {user.name}. Create leagues and share join codes with students.
             </p>
           </div>
-          <Button type="button" onClick={createGame} disabled={creating}>
-            {creating ? "Creating..." : "Create game"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={createGame} disabled={creating}>
+              {creating ? "Creating..." : "Create game"}
+            </Button>
+            <button
+              type="button"
+              onClick={async () => {
+                await logout();
+                window.location.href = "/";
+              }}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
         {error && (

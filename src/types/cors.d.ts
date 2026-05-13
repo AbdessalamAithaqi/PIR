@@ -1,5 +1,10 @@
 declare module "cors" {
   import type { RequestHandler } from "express";
 
-  export default function cors(): RequestHandler;
+  type CorsOptions = {
+    origin?: boolean | string | string[];
+    credentials?: boolean;
+  };
+
+  export default function cors(options?: CorsOptions): RequestHandler;
 }

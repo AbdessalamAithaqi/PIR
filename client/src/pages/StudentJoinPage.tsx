@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, FormEvent, ReactNode } from "react";
+import { authLoginUrl, fetchCurrentUser, logout, type AuthUser } from "../lib/auth";
 
 type GameSummary = {
   id: string;
@@ -77,7 +78,6 @@ type MatchResult = {
   teamBId: string;
 };
 
-const STUDENT_STORAGE_KEY = "pir-demo-student-id";
 const JOINED_GAME_STORAGE_KEY = "pir-demo-joined-game";
 
 const tabs: { id: StudentTab; label: string }[] = [
@@ -175,15 +175,6 @@ const playerPositions: CSSProperties[] = [
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
-}
-
-function getDemoStudentId() {
-  const storedId = window.localStorage.getItem(STUDENT_STORAGE_KEY);
-  if (storedId) return storedId;
-
-  const newId = `student-${crypto.randomUUID()}`;
-  window.localStorage.setItem(STUDENT_STORAGE_KEY, newId);
-  return newId;
 }
 
 function formatMoney(value: number) {
@@ -295,7 +286,8 @@ export function StudentJoinPage() {
   const [bids, setBids] = useState<Record<string, number>>({});
   const [marketingSpend, setMarketingSpend] = useState<Record<string, number>>({});
   const [ready, setReady] = useState(false);
-  const [studentId] = useState(getDemoStudentId);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -317,6 +309,25 @@ export function StudentJoinPage() {
     setRefreshing(false);
     setError("");
   }
+
+  useEffect(() => {
+    let active = true;
+
+    fetchCurrentUser()
+      .then((user) => {
+        if (active) setAuthUser(user);
+      })
+      .catch(() => {
+        if (active) setAuthUser(null);
+      })
+      .finally(() => {
+        if (active) setAuthLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const storedGame = window.localStorage.getItem(JOINED_GAME_STORAGE_KEY);
@@ -366,6 +377,11 @@ export function StudentJoinPage() {
     event.preventDefault();
     const trimmedJoinCode = joinCode.trim().toUpperCase();
 
+    if (!authUser) {
+      setError("Sign in before joining a game.");
+      return;
+    }
+
     if (!trimmedJoinCode) {
       setError("Enter a class code to join.");
       return;
@@ -380,8 +396,8 @@ export function StudentJoinPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           joinCode: trimmedJoinCode,
-          studentId,
-          studentName: "Demo Student",
+          studentId: authUser.id,
+          studentName: authUser.name,
         }),
       });
       const data = await response.json().catch(() => null);
@@ -405,10 +421,11 @@ export function StudentJoinPage() {
   }
 
   useEffect(() => {
-    if (screen !== "waiting" || !game) return;
+    if (screen !== "waiting" || !game || !authUser) return;
 
     let active = true;
     const gameId = game.id;
+    const studentId = authUser.id;
 
     async function checkAssignment() {
       try {
@@ -438,7 +455,7 @@ export function StudentJoinPage() {
       active = false;
       window.clearInterval(intervalId);
     };
-  }, [game, loadGameDetails, replaceRosterFromTeam, screen, studentId]);
+  }, [authUser, game, loadGameDetails, replaceRosterFromTeam, screen]);
 
   function swapPlayer(benchPlayer: Player) {
     if (!selectedLineupId) return;
@@ -587,6 +604,28 @@ export function StudentJoinPage() {
   const totalReserved = Object.values(bids).reduce((sum, bid) => sum + bid, 0);
   const totalMarketing = Object.values(marketingSpend).reduce((sum, spend) => sum + spend, 0);
 
+  if (authLoading) {
+    return <main className="min-h-screen bg-slate-50 p-8 text-sm text-slate-500">Checking sign in...</main>;
+  }
+
+  if (!authUser) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-slate-950">
+        <Card className="w-full max-w-md p-6">
+          <Badge>Student access</Badge>
+          <h1 className="mt-4 text-2xl font-semibold">Sign in required</h1>
+          <p className="mt-2 text-sm text-slate-500">Use your INSA account before joining a game.</p>
+          <a
+            href={authLoginUrl("STUDENT", "/student")}
+            className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-medium text-white no-underline transition hover:bg-slate-800"
+          >
+            Sign in with INSA
+          </a>
+        </Card>
+      </main>
+    );
+  }
+
   if (screen === "waiting" && game) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-slate-950">
@@ -647,7 +686,9 @@ export function StudentJoinPage() {
         <div className="mb-6">
           <Badge>Student access</Badge>
           <h1 className="mt-4 text-2xl font-semibold">Join a game</h1>
-          <p className="mt-2 text-sm text-slate-500">Enter the class code shared by your professor.</p>
+          <p className="mt-2 text-sm text-slate-500">
+            Signed in as {authUser.name}. Enter the class code shared by your professor.
+          </p>
         </div>
         <form onSubmit={joinGame} className="grid gap-4">
           <div className="grid gap-2">
@@ -682,6 +723,18 @@ export function StudentJoinPage() {
           )}
           <Button type="submit" disabled={submitting} className="w-full">
             {submitting ? "Joining..." : "Join game"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={async () => {
+              await logout();
+              leaveGame();
+              window.location.href = "/";
+            }}
+            className="w-full"
+          >
+            Logout
           </Button>
         </form>
       </Card>
