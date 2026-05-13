@@ -775,7 +775,7 @@ async function updateTeamAfterMatch(
   const fanGainMultiplier = parameters.fanGain / DEFAULT_PARAMETERS.fanGain;
   const financialGrowthMultiplier = parameters.financialGrowth / DEFAULT_PARAMETERS.financialGrowth;
   const fanGain = Math.round(
-    team.fans * (0.05 + (team.pubScore + team.merchScore) / 100) * fanGainMultiplier,
+    team.fans * (0.05 + (team.pubScore + team.merchScore) / 50) * fanGainMultiplier,
   );
   const fanDelta = fanGain + fanBonus(outcome);
   const nextFans = Math.max(0, Math.min(MAX_FAN_NUMBER, team.fans + fanDelta));

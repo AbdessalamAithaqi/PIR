@@ -339,15 +339,15 @@ export function StudentJoinPage() {
     return data;
   }, []);
 
-  function replaceRosterFromTeam(updatedTeam: TeamSummary) {
+  const replaceRosterFromTeam = useCallback((updatedTeam: TeamSummary) => {
     const { starters, bench: reserves } = splitRoster(updatedTeam.roster);
     if (starters.length > 0) {
       setLineup(starters);
       setBench(reserves);
     }
-  }
+  }, []);
 
-  function mergeRosterFromTeam(updatedTeam: TeamSummary) {
+  const mergeRosterFromTeam = useCallback((updatedTeam: TeamSummary) => {
     const roster = (updatedTeam.roster ?? []).map(toPlayer);
     if (roster.length === 0) return;
 
@@ -360,7 +360,7 @@ export function StudentJoinPage() {
       ...players.map((player) => rosterById.get(player.id) ?? player),
       ...wonPlayers,
     ]);
-  }
+  }, [bench, lineup]);
 
   async function joinGame(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -438,7 +438,7 @@ export function StudentJoinPage() {
       active = false;
       window.clearInterval(intervalId);
     };
-  }, [game, loadGameDetails, screen, studentId]);
+  }, [game, loadGameDetails, replaceRosterFromTeam, screen, studentId]);
 
   function swapPlayer(benchPlayer: Player) {
     if (!selectedLineupId) return;
@@ -470,7 +470,7 @@ export function StudentJoinPage() {
     } finally {
       setRefreshing(false);
     }
-  }, [bench, game, lineup, loadGameDetails, team]);
+  }, [game, loadGameDetails, mergeRosterFromTeam, team]);
 
   useEffect(() => {
     if (screen !== "dashboard" || !game) return;
