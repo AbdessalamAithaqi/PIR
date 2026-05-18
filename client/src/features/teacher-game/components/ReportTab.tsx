@@ -1,16 +1,18 @@
+import { useI18n } from "../../../i18n";
 import type { GameDetails } from "../types";
 import { Card } from "./ui";
 
 export function ReportTab({ details }: { details: GameDetails }) {
+  const { t } = useI18n();
   const assignedStudents = details.participants.filter((participant) => participant.teamId).length;
   const latestRound = details.results[details.results.length - 1]?.roundNumber ?? 0;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <ReportTile label="Students" value={details.participants.length} />
-      <ReportTile label="Assigned" value={assignedStudents} />
-      <ReportTile label="Rounds played" value={latestRound} />
-      <ReportTile label="Matches" value={details.results.length} />
+      <ReportTile label={t("common.students")} value={details.participants.length} />
+      <ReportTile label={t("common.assigned")} value={assignedStudents} />
+      <ReportTile label={t("teacherGame.report.roundsPlayed")} value={latestRound} />
+      <ReportTile label={t("common.matches")} value={details.results.length} />
     </div>
   );
 }

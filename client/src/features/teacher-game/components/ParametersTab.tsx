@@ -1,4 +1,6 @@
-import { parameterKeys, parameterLabels } from "../constants";
+import { useI18n } from "../../../i18n";
+import type { TranslationKey } from "../../../i18n";
+import { parameterKeys } from "../constants";
 import type { GameParameters } from "../types";
 import { Button, Card } from "./ui";
 
@@ -13,22 +15,26 @@ export function ParametersTab({
   onChange: (parameters: GameParameters) => void;
   onSave: (parameters: GameParameters) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <Card className="max-w-3xl p-5">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="font-semibold">Game parameters</h2>
-          <p className="text-sm text-slate-500">Tune global simulation variables.</p>
+          <h2 className="font-semibold">{t("teacherGame.parameters.title")}</h2>
+          <p className="text-sm text-slate-500">{t("teacherGame.parameters.description")}</p>
         </div>
         <Button type="button" disabled={saving} onClick={() => onSave(parameters)}>
-          {saving ? "Saving..." : "Save"}
+          {saving ? t("common.saving") : t("common.save")}
         </Button>
       </div>
       <div className="grid gap-5">
         {parameterKeys.map((key) => (
           <label key={key} className="grid gap-2">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium">{parameterLabels[key]}</span>
+              <span className="text-sm font-medium">
+                {t(`teacherGame.parameters.${key}` as TranslationKey)}
+              </span>
               <input
                 type="number"
                 min={0}

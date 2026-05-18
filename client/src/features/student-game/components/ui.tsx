@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useI18n } from "../../../i18n";
 import { cn } from "../utils";
 
 export function Button({
@@ -47,6 +48,8 @@ export function Badge({ children, className }: { children: ReactNode; className?
 }
 
 export function ErrorToast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  const { t } = useI18n();
+
   return (
     <div
       className="fixed right-4 top-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-md border border-red-200 bg-white p-4 text-slate-950 shadow-xl"
@@ -55,7 +58,7 @@ export function ErrorToast({ message, onDismiss }: { message: string; onDismiss:
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-red-700">Action needed</p>
+          <p className="text-sm font-semibold text-red-700">{t("common.actionNeeded")}</p>
           <p className="mt-1 text-sm text-slate-700">{message}</p>
         </div>
         <button
@@ -63,7 +66,7 @@ export function ErrorToast({ message, onDismiss }: { message: string; onDismiss:
           onClick={onDismiss}
           className="rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-950"
         >
-          Dismiss
+          {t("common.dismiss")}
         </button>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DragEvent } from "react";
+import { useI18n } from "../../../i18n";
 import {
   assignStudentRequest,
   fetchGameDetails,
@@ -14,6 +15,7 @@ import { sanitizeParameters } from "../utils";
 const STUDENT_DRAG_MIME_TYPE = "application/x-student-id";
 
 export function useTeacherGame(gameId: string | undefined) {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TeacherTab>("teams");
   const [details, setDetails] = useState<GameDetails | null>(null);
   const [parameters, setParameters] = useState<GameParameters>(defaultParameters);
@@ -30,12 +32,12 @@ export function useTeacherGame(gameId: string | undefined) {
       if (data?.parameters) setParameters(sanitizeParameters(data.parameters));
       setError("");
     } catch (err) {
-      setError("Failed to load game");
+      setError(t("error.loadGame"));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [gameId]);
+  }, [gameId, t]);
 
   useEffect(() => {
     fetchGame();
@@ -49,7 +51,7 @@ export function useTeacherGame(gameId: string | undefined) {
       await assignStudentRequest({ gameId, teamId, studentId });
       await fetchGame();
     } catch (err) {
-      setError("Failed to assign student");
+      setError(t("error.assignStudent"));
       console.error(err);
     } finally {
       setSaving(false);
@@ -64,7 +66,7 @@ export function useTeacherGame(gameId: string | undefined) {
       await unassignStudentRequest({ gameId, studentId });
       await fetchGame();
     } catch (err) {
-      setError("Failed to unassign student");
+      setError(t("error.unassignStudent"));
       console.error(err);
     } finally {
       setSaving(false);
@@ -79,7 +81,7 @@ export function useTeacherGame(gameId: string | undefined) {
       await updateRoundRequest({ gameId, action });
       await fetchGame();
     } catch (err) {
-      setError("Failed to update round");
+      setError(t("error.updateRound"));
       console.error(err);
     } finally {
       setSaving(false);
@@ -96,7 +98,7 @@ export function useTeacherGame(gameId: string | undefined) {
       if (savedParameters) setParameters(sanitizeParameters(savedParameters));
       await fetchGame();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save parameters");
+      setError(err instanceof Error ? err.message : t("error.saveParameters"));
       console.error(err);
     } finally {
       setSaving(false);

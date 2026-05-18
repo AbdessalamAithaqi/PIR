@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { useI18n } from "../../../i18n";
 import { tabs } from "../constants";
 import type { GameDetails, GameSummary, Player, StandingRow, StudentTab, TeamSummary } from "../types";
 import { cn, formatMoney } from "../utils";
@@ -66,6 +67,8 @@ export function StudentDashboard({
   onDismissError: () => void;
   decisionOpen: boolean;
 }) {
+  const { t } = useI18n();
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       {error && <ErrorToast message={error} onDismiss={onDismissError} />}
@@ -75,16 +78,16 @@ export function StudentDashboard({
             <p className="text-sm text-slate-500">{game.name}</p>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-semibold tracking-tight">{team.name}</h1>
-              <Badge>{decisionOpen ? "Decision open" : "Locked"}</Badge>
+              <Badge>{decisionOpen ? t("student.decisionOpen") : t("common.locked")}</Badge>
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="grid grid-cols-2 gap-3 sm:w-auto">
-              <Metric label="Fans" value={team.fans.toLocaleString()} />
-              <Metric label="Budget" value={formatMoney(team.budget)} />
+              <Metric label={t("common.fans")} value={team.fans.toLocaleString()} metricKey="fans" />
+              <Metric label={t("common.budget")} value={formatMoney(team.budget)} metricKey="budget" />
             </div>
             <Button type="button" variant="secondary" onClick={onLeaveGame}>
-              Leave game
+              {t("student.leaveGame")}
             </Button>
           </div>
         </div>
@@ -102,7 +105,7 @@ export function StudentDashboard({
                 activeTab === tab.id && "bg-slate-950 text-white hover:bg-slate-950 hover:text-white",
               )}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </nav>
@@ -154,9 +157,17 @@ export function StudentDashboard({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+  label,
+  value,
+  metricKey,
+}: {
+  label: string;
+  value: string;
+  metricKey?: string;
+}) {
   return (
-    <Card className="min-w-36 px-4 py-3">
+    <Card className="min-w-36 px-4 py-3" data-student-metric={metricKey}>
       <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
       <p className="mt-1 text-lg font-semibold">{value}</p>
     </Card>

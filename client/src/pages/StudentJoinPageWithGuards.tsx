@@ -1,7 +1,8 @@
 import { useEffect } from "react";
+import { getStoredLanguage, translateForLanguage } from "../i18n";
 import { StudentJoinPage } from "./StudentJoinPage";
 
-const MARKETING_INPUT_SELECTOR = 'input[aria-label$=" budget"]';
+const MARKETING_INPUT_SELECTOR = 'input[data-marketing-input="true"]';
 const SELECTED_ATTRIBUTE = "data-marketing-selected";
 const WARNING_ID = "marketing-budget-warning";
 
@@ -20,17 +21,13 @@ function formatMoney(value: number) {
 }
 
 function getCurrentBudget() {
-  const budgetLabel = Array.from(document.querySelectorAll("p")).find(
-    (element) => element.textContent?.trim().toUpperCase() === "BUDGET",
-  );
-  return parseMoney(budgetLabel?.nextElementSibling?.textContent ?? "");
+  const budgetMetric = document.querySelector('[data-student-metric="budget"]');
+  const budgetValue = budgetMetric?.querySelectorAll("p")[1]?.textContent;
+  return parseMoney(budgetValue ?? "");
 }
 
 function getMarketingRoot() {
-  const heading = Array.from(document.querySelectorAll("h2")).find(
-    (element) => element.textContent?.trim() === "Marketing",
-  );
-  return heading?.parentElement?.parentElement?.parentElement as HTMLElement | null;
+  return document.querySelector<HTMLElement>('[data-student-marketing-root="true"]');
 }
 
 function getMarketingInputs() {
@@ -95,7 +92,7 @@ function updateMarketingButtons() {
 
     button.disabled = input.disabled || overBudget;
     if (overBudget) {
-      button.title = "Marketing plan exceeds team budget";
+      button.title = translateForLanguage(getStoredLanguage(), "error.marketingOverBudgetTitle");
     } else {
       button.removeAttribute("title");
     }
@@ -103,7 +100,9 @@ function updateMarketingButtons() {
 
   showBudgetWarning(
     overBudget
-      ? `Marketing plan exceeds your budget by ${formatMoney(total - budget)}.`
+      ? translateForLanguage(getStoredLanguage(), "error.marketingOverBudget", {
+          amount: formatMoney(total - budget),
+        })
       : null,
   );
 }
@@ -147,7 +146,9 @@ export function StudentJoinPageWithGuards() {
       const total = getSelectedMarketingTotal();
       if (total <= budget) return false;
 
-      const message = `Marketing plan exceeds your budget by ${formatMoney(total - budget)}.`;
+      const message = translateForLanguage(getStoredLanguage(), "error.marketingOverBudget", {
+        amount: formatMoney(total - budget),
+      });
       showBudgetWarning(message);
       updateMarketingButtons();
       event?.preventDefault();
@@ -163,7 +164,7 @@ export function StudentJoinPageWithGuards() {
       if (!(target instanceof Element)) return;
 
       const button = target.closest("button");
-      if (button?.textContent?.trim() !== "Save") return;
+      if (button?.getAttribute("data-marketing-save") !== "true") return;
 
       const input = button.parentElement?.querySelector<HTMLInputElement>(MARKETING_INPUT_SELECTOR);
       if (!input) return;
@@ -179,10 +180,15 @@ export function StudentJoinPageWithGuards() {
 
       if (url.includes("/marketing") && method.toUpperCase() === "POST" && blockIfOverBudget()) {
         return Promise.resolve(
-          new Response(JSON.stringify({ error: "Marketing plan exceeds team budget" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          }),
+          new Response(
+            JSON.stringify({
+              error: translateForLanguage(getStoredLanguage(), "error.marketingOverBudgetTitle"),
+            }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
         );
       }
 

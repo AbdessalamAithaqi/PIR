@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { useI18n } from "../../../i18n";
 import type { MarketPlayer, ServerBid, TeamAssignment } from "../types";
 import { formatMoney, toPlayer } from "../utils";
 import { Badge, Button, Card } from "./ui";
@@ -26,21 +27,22 @@ export function MarketTab({
   refreshing: boolean;
   decisionOpen: boolean;
 }) {
+  const { t } = useI18n();
   const availablePlayers = market.map(toPlayer);
 
   return (
     <div className="grid gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Market</h2>
+          <h2 className="text-xl font-semibold tracking-tight">{t("student.draft.title")}</h2>
           <p className="text-sm text-slate-500">
-            {decisionOpen ? "Reserve budget by placing bids on available players." : "Market decisions are locked."}
+            {decisionOpen ? t("student.draft.description") : t("student.draft.locked")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Badge>Reserved {formatMoney(totalReserved)}</Badge>
+          <Badge>{t("student.draft.reserved", { amount: formatMoney(totalReserved) })}</Badge>
           <Button type="button" variant="secondary" onClick={onRefresh} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh market"}
+            {refreshing ? t("student.draft.refreshing") : t("student.draft.refresh")}
           </Button>
         </div>
       </div>
@@ -61,10 +63,13 @@ export function MarketTab({
                 <div>
                   <p className="font-medium">{player.name}</p>
                   <p className="text-sm text-slate-500">
-                    {player.position} - OVR {player.rating} - Start {formatMoney(startingPrice)}
+                    {player.position} - {t("student.draft.ovr")} {player.rating} -{" "}
+                    {t("student.draft.start", { amount: formatMoney(startingPrice) })}
                   </p>
                   {highestBid > 0 && (
-                    <p className="mt-1 text-xs text-slate-500">Current high bid {formatMoney(highestBid)}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {t("student.draft.highBid", { amount: formatMoney(highestBid) })}
+                    </p>
                   )}
                 </div>
                 <input
@@ -82,19 +87,17 @@ export function MarketTab({
                     })
                   }
                   className="h-10 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                  aria-label={`${player.name} bid`}
+                  aria-label={`${player.name} ${t("student.draft.bid")}`}
                 />
                 <Button type="button" disabled={!decisionOpen || invalidBid} onClick={() => onBid(player.id, bid)}>
-                  Bid
+                  {t("student.draft.bid")}
                 </Button>
               </div>
             );
           })}
           {availablePlayers.length === 0 && (
             <p className="p-6 text-sm text-slate-500">
-              {decisionOpen
-                ? "No market players are available yet. Refresh the market or ask the professor to relaunch the round."
-                : "The market opens when the professor launches a round."}
+              {decisionOpen ? t("student.draft.emptyOpen") : t("student.draft.emptyClosed")}
             </p>
           )}
         </div>

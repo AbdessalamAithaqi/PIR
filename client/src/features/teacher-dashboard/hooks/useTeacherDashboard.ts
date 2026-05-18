@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "../../../i18n";
 import { createTeacherGame, deleteTeacherGame, fetchTeacherGames } from "../api";
 import { teacherOwnerId } from "../constants";
 import type { GameInstance } from "../types";
 
 export function useTeacherDashboard() {
+  const { t } = useI18n();
   const [games, setGames] = useState<GameInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -14,12 +16,12 @@ export function useTeacherDashboard() {
       const nextGames = await fetchTeacherGames(teacherOwnerId);
       setGames(nextGames);
     } catch (err) {
-      setError("Failed to load games");
+      setError(t("error.loadGames"));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchGames();
@@ -32,12 +34,12 @@ export function useTeacherDashboard() {
 
     try {
       await createTeacherGame({
-        name: `Game ${nextGameNumber}`,
+        name: t("teacherDashboard.defaultGameName", { number: nextGameNumber }),
         ownerId: teacherOwnerId,
       });
       await fetchGames();
     } catch (err) {
-      setError("Failed to create game");
+      setError(t("error.createGame"));
       console.error(err);
     } finally {
       setCreating(false);
@@ -49,7 +51,7 @@ export function useTeacherDashboard() {
       await deleteTeacherGame(gameId);
       await fetchGames();
     } catch (err) {
-      setError("Failed to delete game");
+      setError(t("error.deleteGame"));
       console.error(err);
     }
   }

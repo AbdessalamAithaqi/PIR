@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { DragEvent } from "react";
+import { useI18n } from "../../../i18n";
 import type { Participant, Team } from "../types";
 import { Badge, Card } from "./ui";
 
@@ -20,6 +21,7 @@ export function TeamsTab({
   getDraggedStudentId: (event: DragEvent) => string;
   saving: boolean;
 }) {
+  const { t } = useI18n();
   const teamNameById = useMemo(() => new Map(teams.map((team) => [team.id, team.name])), [teams]);
 
   return (
@@ -34,13 +36,13 @@ export function TeamsTab({
         }}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold">Joined students</h2>
+          <h2 className="font-semibold">{t("teacherGame.joinedStudents")}</h2>
           <Badge>{participants.length}</Badge>
         </div>
         <div className="grid gap-2">
           {participants.length === 0 ? (
             <p className="rounded-md border border-dashed border-slate-200 px-3 py-8 text-center text-sm text-slate-500">
-              No students yet
+              {t("teacherGame.noStudents")}
             </p>
           ) : (
             participants.map((participant) => (
@@ -48,7 +50,7 @@ export function TeamsTab({
                 key={participant.id}
                 studentId={participant.id}
                 name={participant.name}
-                detail={participant.teamId ? teamNameById.get(participant.teamId) : "Unassigned"}
+                detail={participant.teamId ? teamNameById.get(participant.teamId) : t("teacherGame.unassigned")}
                 onDragStart={onDragStart}
                 disabled={saving}
               />
@@ -71,12 +73,12 @@ export function TeamsTab({
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-semibold">{team.name}</h2>
-              <Badge>{team.members.length} members</Badge>
+              <Badge>{t("common.membersCount", { count: team.members.length })}</Badge>
             </div>
             <div className="grid gap-2">
               {team.members.length === 0 ? (
                 <p className="rounded-md border border-dashed border-slate-200 px-3 py-8 text-center text-sm text-slate-500">
-                  Drop students here
+                  {t("teacherGame.dropStudents")}
                 </p>
               ) : (
                 team.members.map((member) => (

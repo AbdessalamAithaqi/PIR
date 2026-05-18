@@ -1,3 +1,4 @@
+import { formatStatus, useI18n } from "../../../i18n";
 import type { GameSummary, RoundAction, Team } from "../types";
 import { Badge, Button, Card } from "./ui";
 
@@ -12,6 +13,7 @@ export function RoundManagementTab({
   saving: boolean;
   onRoundAction: (action: RoundAction) => void;
 }) {
+  const { t } = useI18n();
   const readyStates = teams.slice(0, 4).map((team) => Boolean(team.ready));
   const readyCount = readyStates.filter(Boolean).length;
 
@@ -19,23 +21,27 @@ export function RoundManagementTab({
     <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
       <Card className="grid content-start gap-3 p-4">
         <Button type="button" disabled={saving} onClick={() => onRoundAction("launch")}>
-          Launch
+          {t("teacherGame.round.launch")}
         </Button>
         <Button type="button" disabled={saving} onClick={() => onRoundAction("next")} variant="secondary">
-          Move to next round
+          {t("teacherGame.round.next")}
         </Button>
         <Button type="button" disabled={saving} onClick={() => onRoundAction("stop")} variant="secondary">
-          Stop
+          {t("teacherGame.round.stop")}
         </Button>
       </Card>
 
       <Card className="p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">Round {game.currentRound} / 6</h2>
-            <p className="mt-1 text-sm text-slate-500">Current state: {game.status}</p>
+            <h2 className="text-xl font-semibold tracking-tight">
+              {t("common.roundOf", { round: game.currentRound })}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {t("common.currentState", { status: formatStatus(game.status, t) })}
+            </p>
           </div>
-          <Badge>{game.status}</Badge>
+          <Badge>{formatStatus(game.status, t)}</Badge>
         </div>
         <div className="mt-6 flex flex-wrap gap-3">
           {readyStates.map((ready, index) => (
@@ -48,7 +54,7 @@ export function RoundManagementTab({
           ))}
         </div>
         <p className="mt-4 text-sm text-slate-500">
-          Ready teams {readyCount} / {teams.length}
+          {t("teacherGame.round.readyTeams", { ready: readyCount, total: teams.length })}
         </p>
       </Card>
     </div>

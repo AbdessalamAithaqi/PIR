@@ -1,3 +1,4 @@
+import { useI18n } from "../../../i18n";
 import type { Player } from "../types";
 import { playerPositions } from "../constants";
 import { cn } from "../utils";
@@ -22,24 +23,26 @@ export function TeamTab({
   onReady: () => void;
   decisionOpen: boolean;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="grid gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Squad</h2>
+          <h2 className="text-xl font-semibold tracking-tight">{t("student.squad.title")}</h2>
           <p className="text-sm text-slate-500">
-            {decisionOpen ? "Select a starter, then choose a bench player." : "The professor has locked decisions."}
+            {decisionOpen ? t("student.squad.instructions") : t("student.squad.locked")}
           </p>
         </div>
         <Button type="button" onClick={onReady} disabled={!decisionOpen} variant={ready ? "secondary" : "primary"}>
-          {ready ? "Ready submitted" : "Mark ready"}
+          {ready ? t("student.squad.readySubmitted") : t("student.squad.markReady")}
         </Button>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
         <Card className="overflow-hidden">
           <div className="border-b border-slate-200 px-4 py-3">
-            <h3 className="font-medium">Starting XV</h3>
+            <h3 className="font-medium">{t("student.squad.starting")}</h3>
           </div>
           <div className="relative min-h-[680px] bg-emerald-950/90 p-4">
             <div className="absolute inset-4 rounded-lg border border-white/20" />
@@ -68,7 +71,7 @@ export function TeamTab({
 
         <Card>
           <div className="border-b border-slate-200 px-4 py-3">
-            <h3 className="font-medium">Bench ({bench.length})</h3>
+            <h3 className="font-medium">{t("student.squad.bench", { count: bench.length })}</h3>
           </div>
           <div className="grid gap-2 p-3">
             {bench.map((player) => (

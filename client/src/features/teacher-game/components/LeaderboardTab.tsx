@@ -1,28 +1,30 @@
+import { useI18n } from "../../../i18n";
 import type { MatchResult, Team } from "../types";
 import { formatMoney, sortStandings } from "../utils";
 import { Card } from "./ui";
 
 export function LeaderboardTab({ teams, results }: { teams: Team[]; results: MatchResult[] }) {
+  const { t } = useI18n();
   const standings = sortStandings(teams);
 
   return (
     <Card className="overflow-hidden">
       <div className="border-b border-slate-200 px-4 py-3">
-        <h2 className="font-semibold">Leaderboard</h2>
+        <h2 className="font-semibold">{t("common.leaderboard")}</h2>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              <th className="px-4 py-3">Team</th>
+              <th className="px-4 py-3">{t("common.team")}</th>
               <th className="px-4 py-3">W</th>
               <th className="px-4 py-3">D</th>
               <th className="px-4 py-3">L</th>
               <th className="px-4 py-3">PD</th>
               <th className="px-4 py-3">PTS</th>
-              <th className="px-4 py-3">Fans</th>
-              <th className="px-4 py-3">Budget</th>
-              <th className="px-4 py-3">Form</th>
+              <th className="px-4 py-3">{t("common.fans")}</th>
+              <th className="px-4 py-3">{t("common.budget")}</th>
+              <th className="px-4 py-3">{t("common.form")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">

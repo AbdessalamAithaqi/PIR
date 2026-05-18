@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { useI18n } from "../../../i18n";
 import {
   fetchAssignment,
   fetchGameDetails,
@@ -14,6 +15,7 @@ import type { GameDetails, GameSummary, Player, StudentScreen, StudentTab, TeamS
 import { buildStandings, getDemoStudentId, isStarter, splitRoster, toPlayer } from "../utils";
 
 export function useStudentGame() {
+  const { t } = useI18n();
   const [screen, setScreen] = useState<StudentScreen>("join");
   const [activeTab, setActiveTab] = useState<StudentTab>("team");
   const [joinCode, setJoinCode] = useState("");
@@ -101,7 +103,7 @@ export function useStudentGame() {
     const trimmedJoinCode = joinCode.trim().toUpperCase();
 
     if (!trimmedJoinCode) {
-      setError("Enter a class code to join.");
+      setError(t("error.joinCodeRequired"));
       return;
     }
 
@@ -119,7 +121,7 @@ export function useStudentGame() {
       window.localStorage.setItem(JOINED_GAME_STORAGE_KEY, JSON.stringify(joinedGame));
       setScreen("waiting");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to join this game.");
+      setError(err instanceof Error ? err.message : t("error.joinFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -210,11 +212,11 @@ export function useStudentGame() {
   async function submitBid(playerId: string, amount: number) {
     if (!game || !team) return;
     if (!isDecisionPhaseOpen()) {
-      setError("Round is not open.");
+      setError(t("error.roundClosed"));
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      setError("Enter a positive bid amount.");
+      setError(t("error.positiveBid"));
       return;
     }
 
@@ -229,14 +231,14 @@ export function useStudentGame() {
       setBids((currentBids) => ({ ...currentBids, [playerId]: amount }));
       await refreshDashboard();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to place bid");
+      setError(err instanceof Error ? err.message : t("error.placeBid"));
     }
   }
 
   async function submitMarketing(spend: Record<string, number>) {
     if (!game || !team) return false;
     if (!isDecisionPhaseOpen()) {
-      setError("Round is not open.");
+      setError(t("error.roundClosed"));
       return false;
     }
     setError("");
@@ -253,7 +255,7 @@ export function useStudentGame() {
       await refreshDashboard();
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save marketing");
+      setError(err instanceof Error ? err.message : t("error.saveMarketing"));
       return false;
     }
   }
@@ -261,7 +263,7 @@ export function useStudentGame() {
   async function markReady() {
     if (!game || !team) return;
     if (!isDecisionPhaseOpen()) {
-      setError("Round is not open.");
+      setError(t("error.roundClosed"));
       return;
     }
     setError("");
@@ -280,7 +282,7 @@ export function useStudentGame() {
       setReady(true);
       await refreshDashboard();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to mark ready");
+      setError(err instanceof Error ? err.message : t("error.markReady"));
     }
   }
 

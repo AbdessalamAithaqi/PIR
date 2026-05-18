@@ -1,15 +1,16 @@
 import type { CSSProperties } from "react";
+import type { TranslationKey } from "../../i18n";
 import type { MarketingOption, Player, StudentTab } from "./types";
 
 export const STUDENT_STORAGE_KEY = "pir-demo-student-id";
 export const JOINED_GAME_STORAGE_KEY = "pir-demo-joined-game";
 
-export const tabs: { id: StudentTab; label: string }[] = [
-  { id: "team", label: "Team" },
-  { id: "market", label: "Market" },
-  { id: "marketing", label: "Marketing" },
-  { id: "leaderboard", label: "Leaderboard" },
-  { id: "report", label: "Report" },
+export const tabs: { id: StudentTab; labelKey: TranslationKey }[] = [
+  { id: "team", labelKey: "student.tabs.team" },
+  { id: "market", labelKey: "student.tabs.draft" },
+  { id: "marketing", labelKey: "student.tabs.marketing" },
+  { id: "leaderboard", labelKey: "student.tabs.leaderboard" },
+  { id: "report", labelKey: "student.tabs.report" },
 ];
 
 export const startingPlayers: Player[] = [

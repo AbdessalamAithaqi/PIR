@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { DragEvent, Dispatch, SetStateAction } from "react";
+import { formatStatus, useI18n } from "../../../i18n";
 import { tabs } from "../constants";
 import type { GameDetails, GameParameters, RoundAction, TeacherTab } from "../types";
 import { cn } from "../utils";
@@ -39,6 +40,8 @@ export function TeacherGameDashboard({
   onDragStart: (event: DragEvent, studentId: string) => void;
   getDraggedStudentId: (event: DragEvent) => string;
 }) {
+  const { t } = useI18n();
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <header className="border-b border-slate-200 bg-white">
@@ -48,15 +51,15 @@ export function TeacherGameDashboard({
               to="/teacher"
               className="inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 no-underline transition hover:bg-slate-50 hover:text-slate-950"
             >
-              Back
+              {t("common.back")}
             </Link>
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">{details.game.name}</h1>
-              <p className="text-sm text-slate-500">Teacher management</p>
+              <p className="text-sm text-slate-500">{t("teacherGame.management")}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge>{details.game.status}</Badge>
+            <Badge>{formatStatus(details.game.status, t)}</Badge>
             <span className="rounded-md bg-slate-950 px-3 py-1.5 font-mono text-sm font-semibold text-white">
               {details.game.joinCode}
             </span>
@@ -76,7 +79,7 @@ export function TeacherGameDashboard({
                 activeTab === tab.id && "bg-slate-950 text-white hover:bg-slate-950 hover:text-white",
               )}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>

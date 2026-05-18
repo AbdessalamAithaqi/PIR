@@ -1,3 +1,4 @@
+import { useI18n } from "../../../i18n";
 import type { GameInstance } from "../types";
 import { GameList } from "./GameList";
 import { Badge, Button } from "./ui";
@@ -15,20 +16,24 @@ export function TeacherDashboardView({
   onCreateGame: () => void;
   onDeleteGame: (gameId: string) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <section className="mx-auto grid max-w-5xl gap-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <Badge>Teacher console</Badge>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">Game management</h1>
+            <Badge>{t("teacherDashboard.badge")}</Badge>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight">{t("teacherDashboard.title")}</h1>
             <p className="mt-1 text-sm text-slate-500">
-              Create leagues and share join codes with students.
+              {t("teacherDashboard.description")}
             </p>
           </div>
-          <Button type="button" onClick={onCreateGame} disabled={creating}>
-            {creating ? "Creating..." : "Create game"}
-          </Button>
+          <div className="flex flex-col gap-3 sm:items-end">
+            <Button type="button" onClick={onCreateGame} disabled={creating}>
+              {creating ? t("teacherDashboard.creating") : t("teacherDashboard.create")}
+            </Button>
+          </div>
         </div>
 
         {error && (

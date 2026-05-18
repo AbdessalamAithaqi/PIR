@@ -1,3 +1,4 @@
+import type { TranslationKey } from "../../i18n";
 import type { GameParameters, ParameterKey, TeacherTab } from "./types";
 
 export const parameterKeys = [
@@ -7,12 +8,12 @@ export const parameterKeys = [
   "luckFactor",
 ] as const satisfies readonly ParameterKey[];
 
-export const tabs: { id: TeacherTab; label: string }[] = [
-  { id: "teams", label: "Teams" },
-  { id: "parameters", label: "Parameters" },
-  { id: "round", label: "Round Management" },
-  { id: "report", label: "Reports" },
-  { id: "leaderboard", label: "Leaderboard" },
+export const tabs: { id: TeacherTab; labelKey: TranslationKey }[] = [
+  { id: "teams", labelKey: "teacherGame.tabs.teams" },
+  { id: "parameters", labelKey: "teacherGame.tabs.parameters" },
+  { id: "round", labelKey: "teacherGame.tabs.round" },
+  { id: "report", labelKey: "teacherGame.tabs.report" },
+  { id: "leaderboard", labelKey: "teacherGame.tabs.leaderboard" },
 ];
 
 export const parameterLabels: Record<ParameterKey, string> = {

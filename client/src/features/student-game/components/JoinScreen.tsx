@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { useI18n } from "../../../i18n";
 import { Badge, Button, Card } from "./ui";
 
 export function JoinScreen({
@@ -14,18 +15,20 @@ export function JoinScreen({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onJoinCodeChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 text-slate-950">
+    <main className="relative flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 text-slate-950">
       <Card className="w-full max-w-md p-6">
         <div className="mb-6">
-          <Badge>Student access</Badge>
-          <h1 className="mt-4 text-2xl font-semibold">Join a game</h1>
-          <p className="mt-2 text-sm text-slate-500">Enter the class code shared by your professor.</p>
+          <Badge>{t("student.join.badge")}</Badge>
+          <h1 className="mt-4 text-2xl font-semibold">{t("student.join.title")}</h1>
+          <p className="mt-2 text-sm text-slate-500">{t("student.join.description")}</p>
         </div>
         <form onSubmit={onSubmit} className="grid gap-4">
           <div className="grid gap-2">
             <label htmlFor="class-code" className="text-sm font-medium text-slate-700">
-              Class code
+              {t("student.join.classCode")}
             </label>
             <input
               id="class-code"
@@ -51,7 +54,7 @@ export function JoinScreen({
             </p>
           )}
           <Button type="submit" disabled={submitting} className="w-full">
-            {submitting ? "Joining..." : "Join game"}
+            {submitting ? t("student.join.submitting") : t("student.join.submit")}
           </Button>
         </form>
       </Card>
