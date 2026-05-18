@@ -9,7 +9,7 @@ export const LANGUAGE_STORAGE_KEY = "pir-ui-language";
 const englishTranslations = {
   "language.aria": "Select language",
 
-  "app.title": "Rugby Team Management",
+  "app.title": "The Gainline",
   "app.teacherLogin": "Teacher Login",
   "app.studentLogin": "Student Login",
 
@@ -162,7 +162,7 @@ export type TranslationKey = keyof typeof englishTranslations;
 const frenchTranslations: Record<TranslationKey, string> = {
   "language.aria": "Choisir la langue",
 
-  "app.title": "Gestion d'équipe de rugby",
+  "app.title": "The Gainline",
   "app.teacherLogin": "Connexion professeur",
   "app.studentLogin": "Connexion étudiant",
 
