@@ -10,6 +10,9 @@ const englishTranslations = {
   "language.aria": "Select language",
 
   "app.title": "The Gainline",
+  "app.roleSelect": "Role select",
+  "app.teacherRole": "Teacher",
+  "app.studentRole": "Student",
   "app.teacherLogin": "Teacher Login",
   "app.studentLogin": "Student Login",
 
@@ -163,6 +166,9 @@ const frenchTranslations: Record<TranslationKey, string> = {
   "language.aria": "Choisir la langue",
 
   "app.title": "The Gainline",
+  "app.roleSelect": "Choix du rôle",
+  "app.teacherRole": "Professeur",
+  "app.studentRole": "Étudiant",
   "app.teacherLogin": "Connexion professeur",
   "app.studentLogin": "Connexion étudiant",
 

@@ -8,23 +8,40 @@ function Home() {
   const { t } = useI18n();
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gray-50">
-      <h1 className="mb-8 text-4xl font-bold text-blue-900">{t("app.title")}</h1>
-      <div className="flex gap-4">
-        <Link 
-          to="/teacher" 
-          className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition shadow-sm"
-        >
-          {t("app.teacherLogin")}
-        </Link>
-        <Link 
-          to="/student" 
-          className="bg-green-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-green-700 transition shadow-sm"
-        >
-          {t("app.studentLogin")}
-        </Link>
+    <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-950 sm:px-6 lg:px-8">
+      <section className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-4xl flex-col justify-center">
+        <div className="mb-6">
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-700 shadow-sm">
+            {t("app.roleSelect")}
+          </span>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">{t("app.title")}</h1>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <RoleLink to="/teacher" role={t("app.teacherRole")} action={t("app.teacherLogin")} />
+          <RoleLink to="/student" role={t("app.studentRole")} action={t("app.studentLogin")} />
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function RoleLink({ to, role, action }: { to: string; role: string; action: string }) {
+  return (
+    <Link
+      to={to}
+      className="group rounded-lg border border-slate-200 bg-white p-5 text-slate-950 no-underline shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-500">{role}</p>
+          <p className="mt-2 text-lg font-semibold">{action}</p>
+        </div>
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-950 text-lg font-semibold text-white transition group-hover:bg-slate-800">
+          &rarr;
+        </span>
       </div>
-    </div>
+    </Link>
   );
 }
 
