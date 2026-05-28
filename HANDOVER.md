@@ -249,7 +249,7 @@ The backend and frontend have **separate** dependency trees, so you install twic
 
 ```bash
 # 1. Clone the public repository
-git clone <the GitHub URL Paul was given>
+git clone <https://github.com/AbdessalamAithaqi/PIR>
 cd PIR-main
 
 # 2. Backend dependencies
